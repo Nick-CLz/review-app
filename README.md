@@ -1,36 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shelfie — review & compare anything
 
-## Getting Started
-
-First, run the development server:
+Next.js app for reviewing products and comparing prices across stores. It starts with 20 everyday SKUs at **Big C** and **7-Eleven**.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features
+- **Browse**: search (English, Thai, brand, barcode), filter by category and store, sort by rating, price, unit price or the gap between stores.
+- **Item page**: latest price at each store, the cheaper store and how much you save, price per 100 ml / 100 g / piece, a price log with promos and dates, and star reviews with a rating breakdown.
+- **Compare**: up to 4 items side by side. The best value in each row is highlighted, with a quick verdict (best value, best rated, which store wins).
+- **Add anything**: free-form category, custom specs (key/value), extra stores (Lotus's, Tops, Makro…).
+- **Data**: export and import as JSON, or reset to the sample data.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Notes
+- The data is stored in the browser (`localStorage`); there is no backend yet.
+- Seed prices in `src/lib/seed.ts` are **sample values only**, not live store prices.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Layout
+- `src/lib/types.ts`: data model (Store, Item, Price, Review)
+- `src/lib/store.ts`: client store and actions
+- `src/lib/stats.ts`: unit price, best price, ratings
+- `src/app/*`: pages (`/`, `/items/[id]`, `/compare`, `/add`, `/data`)
