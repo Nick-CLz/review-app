@@ -73,11 +73,11 @@ export const CATEGORIES: Category[] = [
     name: "ประกันการเดินทาง",
     nameEn: "Travel insurance",
     icon: "✈️",
-    description: "ค่ารักษาในต่างประเทศ เที่ยวบินล่าช้า กระเป๋าหาย สำหรับทริปต่างประเทศ 7 วัน",
+    description: "ข้อมูลจริงจากเว็บไซต์บริษัทประกัน: ค่ารักษาในต่างประเทศ อุบัติเหตุ เที่ยวบินล่าช้า และกระเป๋าสูญหาย",
     priceKey: "premium",
     priceSuffix: "/ทริป",
     fields: [
-      { key: "premium", label: "เบี้ยประกัน (7 วัน, เอเชีย)", type: "money", better: "lower", suffix: "/ทริป" },
+      { key: "premium", label: "เบี้ยประกัน", type: "money", better: "lower", suffix: "/ทริป", hint: "ส่วนใหญ่บริษัทแสดงเบี้ยหลังกรอกข้อมูลทริปเท่านั้น" },
       { key: "medicalLimit", label: "ค่ารักษาพยาบาลต่างประเทศ", type: "money", better: "higher" },
       { key: "accidentDeath", label: "เสียชีวิต/ทุพพลภาพจากอุบัติเหตุ", type: "money", better: "higher" },
       { key: "flightDelay", label: "เที่ยวบินล่าช้า", type: "money", better: "higher" },

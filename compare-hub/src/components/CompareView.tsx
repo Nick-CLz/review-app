@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { LIVE_CATEGORIES, getCategory } from "@/lib/categories";
 import { getProduct } from "@/lib/products";
-import { formatSpec, money, winners } from "@/lib/format";
+import { formatSpec, winners } from "@/lib/format";
+import { BuyAction, DataBadge, Price } from "./ProductBits";
 import { clearCompare, removeFromCompare, useCompare } from "@/lib/store";
 import RatingBadge from "./RatingBadge";
 
@@ -90,10 +91,12 @@ export default function CompareView() {
                   <div className="mt-1">
                     <RatingBadge productId={p.id} seed={p.reviews} />
                   </div>
-                  <p className="mt-2 text-lg font-bold text-brand">
-                    {money(Number(p.specs[c.priceKey] ?? 0))}
-                    <span className="text-xs font-normal text-muted">{c.priceSuffix}</span>
-                  </p>
+                  <div className="mt-1">
+                    <DataBadge product={p} />
+                  </div>
+                  <div className="mt-2">
+                    <Price product={p} category={c} size="text-lg" />
+                  </div>
                 </th>
               ))}
             </tr>
@@ -146,9 +149,7 @@ export default function CompareView() {
               <th className="sticky left-0 bg-surface p-4" />
               {items.map((p) => (
                 <td key={p.id} className="p-4">
-                  <Link href={`/buy/${p.id}`} className="btn-primary w-full">
-                    สนใจซื้อ
-                  </Link>
+                  <BuyAction product={p} className="btn-primary w-full" />
                 </td>
               ))}
             </tr>

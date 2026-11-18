@@ -7,7 +7,7 @@ export function money(n: number) {
 }
 
 export function formatSpec(field: SpecField, value: SpecValue | undefined): string {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "ไม่ระบุ";
   const suffix = field.suffix ?? "";
   switch (field.type) {
     case "bool":

@@ -52,6 +52,19 @@ export interface Product {
   exclusions: string[];
   specs: Record<string, SpecValue>;
   reviews: SeedReview[];
+  /** Present on real products: where the figures came from and when they were checked. */
+  source?: ProductSource;
+  /** True when the headline price is a published "starting from" price, not this plan's own. */
+  priceIsFrom?: boolean;
+  /** Extra caveats about the data, e.g. which age band the figures apply to. */
+  dataNote?: string;
+}
+
+export interface ProductSource {
+  url: string;
+  label: string;
+  /** Local date (YYYY-MM-DD) the figures were last checked against the source. */
+  checkedAt: string;
 }
 
 export interface UserReview extends SeedReview {

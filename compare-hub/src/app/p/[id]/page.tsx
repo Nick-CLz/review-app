@@ -4,8 +4,10 @@ import Link from "next/link";
 import PageSkeleton from "@/components/PageSkeleton";
 import { notFound } from "next/navigation";
 import { getCategory } from "@/lib/categories";
-import { PRODUCTS, getProduct, productsIn } from "@/lib/products";
-import { formatSpec, money } from "@/lib/format";
+import { PRODUCTS, getProduct, priceOf, productsIn } from "@/lib/products";
+import { money } from "@/lib/format";
+import { formatSpec } from "@/lib/format";
+import { BuyAction, DataBadge, Price } from "@/components/ProductBits";
 import CompareButton from "@/components/CompareButton";
 import RatingBadge from "@/components/RatingBadge";
 import Reviews from "@/components/Reviews";
@@ -33,7 +35,6 @@ async function ProductContent({ params }: { params: PageProps<"/p/[id]">["params
   const c = p && getCategory(p.category);
   if (!p || !c) notFound();
 
-  const price = Number(p.specs[c.priceKey] ?? 0);
   const alternatives = productsIn(c.slug).filter((x) => x.id !== p.id);
 
   return (
@@ -56,8 +57,11 @@ async function ProductContent({ params }: { params: PageProps<"/p/[id]">["params
               {c.icon} {c.name} · {p.provider}
             </p>
             <h1 className="mt-1 text-2xl font-bold md:text-3xl">{p.name}</h1>
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <RatingBadge productId={p.id} seed={p.reviews} />
+            </div>
+            <div className="mt-2">
+              <DataBadge product={p} withLink />
             </div>
             <p className="mt-3 text-muted">{p.tagline}</p>
           </header>
@@ -102,6 +106,7 @@ async function ProductContent({ params }: { params: PageProps<"/p/[id]">["params
                 ))}
               </tbody>
             </table>
+            {p.dataNote && <p className="border-t border-line px-5 py-3 text-xs text-muted">หมายเหตุ: {p.dataNote}</p>}
           </section>
 
           <Reviews productId={p.id} seed={p.reviews} />
@@ -109,14 +114,9 @@ async function ProductContent({ params }: { params: PageProps<"/p/[id]">["params
 
         <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           <div className="rounded-2xl border border-line bg-surface p-5">
-            <p className="text-xs text-muted">เบี้ยประกันเริ่มต้น</p>
-            <p className="text-3xl font-bold text-brand">
-              {money(price)}
-              <span className="text-sm font-normal text-muted">{c.priceSuffix}</span>
-            </p>
-            <Link href={`/buy/${p.id}`} className="btn-primary mt-4 w-full py-3 text-base">
-              สนใจซื้อแผนนี้
-            </Link>
+            <p className="text-xs text-muted">เบี้ยประกัน</p>
+            <Price product={p} category={c} size="text-3xl" />
+            <BuyAction product={p} className="btn-primary mt-4 w-full py-3 text-base" />
             <div className="mt-2 flex justify-center">
               <CompareButton id={p.id} category={p.category} variant="button" />
             </div>
@@ -132,7 +132,9 @@ async function ProductContent({ params }: { params: PageProps<"/p/[id]">["params
                     <Link href={`/p/${a.id}`} className="hover:text-brand">
                       {a.name}
                     </Link>
-                    <span className="shrink-0 text-xs text-muted">{money(Number(a.specs[c.priceKey] ?? 0))}</span>
+                    <span className="shrink-0 text-xs text-muted">
+                      {priceOf(a, c.priceKey) === null ? "ขอใบเสนอราคา" : money(priceOf(a, c.priceKey)!)}
+                    </span>
                   </li>
                 ))}
               </ul>

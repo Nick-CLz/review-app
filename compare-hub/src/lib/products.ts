@@ -1,7 +1,8 @@
 import type { Product, SeedReview } from "./types";
+import { TRAVEL_PRODUCTS } from "./data/travel";
 
 /**
- * SAMPLE DATA — provider names, plans and prices are fictional and exist only to
+ * SAMPLE DATA (all categories except travel) — provider names, plans and prices are fictional and exist only to
  * demonstrate the comparison UI. Replace with real, licensed product data
  * (e.g. from insurers' published brochures / OIC filings) before going live.
  */
@@ -173,45 +174,8 @@ export const PRODUCTS: Product[] = [
     reviews: [r("มิ้นท์", 3, "ทุนน้อย", "ราคาดีแต่ทุน 1 แสน ไม่พอถ้าชนหนัก", "2026-01-30")],
   },
 
-  // ───────────── ประกันการเดินทาง ─────────────
-  {
-    id: "travel-andaman-asia",
-    category: "travel",
-    name: "อันดามัน ทราเวล เอเชีย",
-    provider: "อันดามันประกันภัย",
-    tagline: "เที่ยวเอเชียสบายใจ เริ่มต้นไม่ถึง 400",
-    badge: "เบี้ยถูกสุด",
-    highlights: ["ค่ารักษา 2 ล้านบาท", "เที่ยวบินล่าช้าทุก 6 ชม.", "ซื้อออนไลน์ได้ทันที"],
-    exclusions: ["กีฬาผาดโผน", "โรคที่เป็นมาก่อน"],
-    specs: { premium: 380, medicalLimit: 2000000, accidentDeath: 1000000, flightDelay: 3000, baggage: 10000, schengen: false, covid: true },
-    reviews: [r("Kan", 5, "ราคาถูก ซื้อง่าย", "ไปญี่ปุ่น 7 วัน ได้กรมธรรม์ในอีเมลทันที", "2026-10-20")],
-  },
-  {
-    id: "travel-siam-worldwide",
-    category: "travel",
-    name: "สยามชิลด์ เวิลด์ไวด์",
-    provider: "สยามชิลด์",
-    tagline: "ใช้ยื่นวีซ่าเชงเก้นได้ ค่ารักษา 5 ล้าน",
-    badge: "คุ้มครองสูงสุด",
-    highlights: ["ยื่นวีซ่าเชงเก้นได้", "ค่ารักษา 5 ล้านบาท", "สายด่วนภาษาไทย 24 ชม."],
-    exclusions: ["การเดินทางไปพื้นที่สงคราม"],
-    specs: { premium: 990, medicalLimit: 5000000, accidentDeath: 3000000, flightDelay: 10000, baggage: 30000, schengen: true, covid: true },
-    reviews: [
-      r("อิง", 5, "ยื่นวีซ่าผ่าน", "สถานทูตรับ เอกสารภาษาอังกฤษครบ", "2026-08-08"),
-      r("Arm", 4, "คุ้มครองดี", "กระเป๋าเสียหาย เคลมได้ภายใน 2 สัปดาห์", "2026-05-01"),
-    ],
-  },
-  {
-    id: "travel-sabai-trip",
-    category: "travel",
-    name: "สบายใจ ทริปส์",
-    provider: "สบายไลฟ์",
-    tagline: "แผนสมดุล ค่ารักษา 3 ล้าน กระเป๋าหาย 20,000",
-    highlights: ["คุ้มครองการยกเลิกการเดินทาง", "เที่ยวบินล่าช้าทุก 4 ชม.", "ยื่นวีซ่าได้"],
-    exclusions: ["ไม่คุ้มครองโควิด-19"],
-    specs: { premium: 590, medicalLimit: 3000000, accidentDeath: 1500000, flightDelay: 6000, baggage: 20000, schengen: true, covid: false },
-    reviews: [r("ฝน", 4, "ราคากลาง ๆ", "สมดุลดี แต่ไม่มีโควิด", "2026-04-04")],
-  },
+  // ───────────── ประกันการเดินทาง: real data, see ./data/travel.ts ─────────────
+  ...TRAVEL_PRODUCTS,
 
   // ───────────── อุบัติเหตุ ─────────────
   {
@@ -294,6 +258,12 @@ export function getProduct(id: string) {
 
 export function productsIn(category: string) {
   return PRODUCTS.filter((p) => p.category === category);
+}
+
+/** Headline price, or null when the insurer only quotes on request. */
+export function priceOf(p: Product, priceKey: string): number | null {
+  const v = p.specs[priceKey];
+  return typeof v === "number" ? v : null;
 }
 
 export function avgRating(reviews: { rating: number }[]) {

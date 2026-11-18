@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Category, Product } from "@/lib/types";
-import { formatSpec, money } from "@/lib/format";
+import { formatSpec } from "@/lib/format";
+import { BuyAction, DataBadge, Price } from "./ProductBits";
 import CompareButton from "./CompareButton";
 import RatingBadge from "./RatingBadge";
 
 export default function ProductCard({ product: p, category: c }: { product: Product; category: Category }) {
-  const price = Number(p.specs[c.priceKey] ?? 0);
   // Show the 3 most important non-price specs on the card.
   const keySpecs = c.fields.filter((f) => f.key !== c.priceKey).slice(0, 3);
 
@@ -24,7 +24,8 @@ export default function ProductCard({ product: p, category: c }: { product: Prod
           <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-fg">{p.badge}</span>
         )}
       </div>
-      <div className="mt-1">
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <DataBadge product={p} />
         <RatingBadge productId={p.id} seed={p.reviews} />
       </div>
       <p className="mt-2 text-sm text-muted">{p.tagline}</p>
@@ -40,11 +41,8 @@ export default function ProductCard({ product: p, category: c }: { product: Prod
 
       <div className="mt-auto flex items-end justify-between gap-2 pt-4">
         <div>
-          <p className="text-[11px] text-muted">เบี้ยเริ่มต้น</p>
-          <p className="text-xl font-bold text-brand">
-            {money(price)}
-            <span className="text-xs font-normal text-muted">{c.priceSuffix}</span>
-          </p>
+          <p className="text-[11px] text-muted">เบี้ยประกัน</p>
+          <Price product={p} category={c} />
         </div>
         <CompareButton id={p.id} category={p.category} />
       </div>
@@ -52,9 +50,7 @@ export default function ProductCard({ product: p, category: c }: { product: Prod
         <Link href={`/p/${p.id}`} className="btn-ghost">
           ดูรายละเอียด
         </Link>
-        <Link href={`/buy/${p.id}`} className="btn-primary">
-          สนใจซื้อ
-        </Link>
+        <BuyAction product={p} />
       </div>
     </article>
   );

@@ -40,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </header>
 
         <div className="border-b border-amber-300/50 bg-amber-50 px-4 py-1.5 text-center text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          เวอร์ชันทดลอง: ชื่อบริษัท แผนประกัน และเบี้ยทั้งหมดเป็นข้อมูลตัวอย่าง ไม่ใช่ข้อเสนอขายจริง
+          เวอร์ชันทดลอง: หมวดประกันการเดินทางใช้ข้อมูลจริงจากเว็บไซต์บริษัท หมวดอื่นยังเป็นข้อมูลตัวอย่าง ไม่ใช่ข้อเสนอขายจริง
         </div>
 
         <main className="flex-1 pb-28">{children}</main>

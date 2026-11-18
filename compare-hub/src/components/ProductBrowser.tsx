@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Category, Product } from "@/lib/types";
-import { avgRating } from "@/lib/products";
+import { avgRating, priceOf } from "@/lib/products";
 import ProductCard from "./ProductCard";
 
 type Sort = "price-asc" | "price-desc" | "rating" | "coverage";
@@ -16,7 +16,8 @@ export default function ProductBrowser({ category, products }: { category: Categ
   const providers = useMemo(() => [...new Set(products.map((p) => p.provider))], [products]);
   // "Coverage" sorts by the first money field where higher is better.
   const coverageKey = category.fields.find((f) => f.type === "money" && f.better === "higher")?.key;
-  const price = (p: Product) => Number(p.specs[category.priceKey] ?? 0);
+  // Quote-only plans (no published price) sort after priced ones.
+  const price = (p: Product) => priceOf(p, category.priceKey) ?? Infinity;
 
   const term = q.trim().toLowerCase();
   const limit = Number(maxPrice) || Infinity;
@@ -29,7 +30,7 @@ export default function ProductBrowser({ category, products }: { category: Categ
     )
     .sort((a, b) => {
       if (sort === "price-asc") return price(a) - price(b);
-      if (sort === "price-desc") return price(b) - price(a);
+      if (sort === "price-desc") return (priceOf(b, category.priceKey) ?? -1) - (priceOf(a, category.priceKey) ?? -1);
       if (sort === "rating") return avgRating(b.reviews) - avgRating(a.reviews);
       return Number(b.specs[coverageKey ?? ""] ?? 0) - Number(a.specs[coverageKey ?? ""] ?? 0);
     });
