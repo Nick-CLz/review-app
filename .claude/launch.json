@@ -1,7 +1,36 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 },
-    { "name": "compare-hub", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "compare-hub", "run", "dev"], "port": 3200 }
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "compare-hub",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "compare-hub",
+        "run",
+        "dev"
+      ],
+      "port": 3200
+    },
+    {
+      "name": "compare-anything",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "compare-anything",
+        "run",
+        "dev"
+      ],
+      "port": 3300
+    }
   ]
 }
