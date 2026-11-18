@@ -1,119 +1,177 @@
 "use client";
 
+// Client-side view of the shared database.
+// - Items, prices, reviews and stores come from Neon via /api/db and are shared by everyone.
+// - Writes go through Server Functions (src/app/actions.ts); the UI updates optimistically,
+//   then re-syncs from the server.
+// - The compare list is personal and stays in this browser's localStorage.
+
 import { useSyncExternalStore } from "react";
-import { buildSeed } from "./seed";
+import * as server from "@/app/actions";
 import type { DB, Item, Price, Review, Store } from "./types";
 
-const KEY = "review-app-db-v1";
-const SERVER_DB = buildSeed();
+type Shared = Omit<DB, "compare" | "version">;
+export type SyncStatus = "loading" | "ready" | "saving" | "error";
 
-let db: DB | null = null;
+const CACHE_KEY = "shelfie-cache-v2"; // last server copy, for an instant first paint
+const COMPARE_KEY = "shelfie-compare-v1";
+const POLL_MS = 20_000;
+
+const EMPTY: Shared = { stores: [], items: [], prices: [], reviews: [] };
+const SERVER_SNAPSHOT: DB = { version: 1, ...EMPTY, compare: [] };
+
+let shared: Shared = EMPTY;
+let compare: string[] = [];
+let status: SyncStatus = "loading";
+let lastError = "";
+let viewerId: string | undefined; // set by <ViewerSync> from the Clerk session
+let snapshot: DB = SERVER_SNAPSHOT;
+let started = false;
+let pending = 0;
 const listeners = new Set<() => void>();
 
-function load(): DB {
-  if (db) return db;
-  try {
-    const raw = localStorage.getItem(KEY);
-    db = raw ? (JSON.parse(raw) as DB) : buildSeed();
-  } catch {
-    db = buildSeed();
-  }
-  return db;
-}
-
-function commit(next: DB) {
-  db = next;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    /* storage full or blocked: keep in memory */
-  }
+function emit() {
+  snapshot = { version: 1, ...shared, compare: compare.filter((id) => shared.items.some((i) => i.id === id)) };
   listeners.forEach((l) => l());
 }
 
-function update(fn: (d: DB) => DB) {
-  commit(fn(load()));
+function safeGet(key: string) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function safeSet(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* blocked or full */ }
+}
+
+export async function refresh() {
+  try {
+    const res = await fetch("/api/db", { cache: "no-store" });
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    const data = (await res.json()) as Shared;
+    if (pending > 0) return; // a write is in flight; its own refresh will land the final state
+    shared = { stores: data.stores, items: data.items, prices: data.prices, reviews: data.reviews };
+    safeSet(CACHE_KEY, JSON.stringify(shared));
+    status = "ready";
+    lastError = "";
+  } catch (e) {
+    status = "error";
+    lastError = (e as Error).message;
+  }
+  emit();
+}
+
+function start() {
+  if (started) return;
+  started = true;
+  try {
+    const cached = safeGet(CACHE_KEY);
+    if (cached) shared = JSON.parse(cached) as Shared;
+    compare = JSON.parse(safeGet(COMPARE_KEY) ?? "[]") as string[];
+  } catch { /* ignore bad cache */ }
+  emit();
+  refresh();
+  setInterval(() => document.visibilityState === "visible" && refresh(), POLL_MS);
+  window.addEventListener("focus", () => refresh());
+  window.addEventListener("storage", (e) => {
+    if (e.key === COMPARE_KEY) {
+      compare = JSON.parse(e.newValue ?? "[]");
+      emit();
+    }
+  });
 }
 
 function subscribe(l: () => void) {
   listeners.add(l);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY) {
-      db = null;
-      l();
-    }
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(l);
-    window.removeEventListener("storage", onStorage);
-  };
+  start();
+  return () => listeners.delete(l);
 }
 
 export function useDB(): DB {
-  return useSyncExternalStore(subscribe, load, () => SERVER_DB);
+  return useSyncExternalStore(subscribe, () => snapshot, () => SERVER_SNAPSHOT);
+}
+
+export function useSyncStatus() {
+  return useSyncExternalStore(subscribe, () => status, () => "loading" as SyncStatus);
+}
+export const getLastError = () => lastError;
+export function setViewerId(id: string | undefined) {
+  viewerId = id;
+}
+
+/** Apply a change locally right away, persist it on the server, then re-sync. */
+async function mutate(local: (s: Shared) => Shared, remote: () => Promise<void>) {
+  shared = local(shared);
+  pending++;
+  status = "saving";
+  emit();
+  try {
+    await remote();
+  } catch (e) {
+    console.error(e);
+    lastError = viewerId
+      ? "Couldn't save — your change was undone. Check your inputs and try again."
+      : "Please sign in to make changes. Your change was undone.";
+    alert(lastError);
+  } finally {
+    pending--;
+  }
+  if (pending === 0) await refresh();
+}
+
+function setCompare(next: string[]) {
+  compare = next;
+  safeSet(COMPARE_KEY, JSON.stringify(next));
+  emit();
 }
 
 export const uid = (p: string) => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 export const today = () => new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
 
 export const actions = {
-  addItem(item: Omit<Item, "id" | "createdAt">, prices: { storeId: string; price: number }[]) {
+  addItem(item: Omit<Item, "id" | "createdAt" | "userId">, prices: { storeId: string; price: number }[]) {
     const id = uid("item");
-    update((d) => ({
-      ...d,
-      items: [...d.items, { ...item, id, createdAt: today() }],
-      prices: [
-        ...d.prices,
-        ...prices.map((p) => ({ id: uid("p"), itemId: id, storeId: p.storeId, price: p.price, date: today() })),
-      ],
-    }));
+    const full: Item = { ...item, id, createdAt: today(), userId: viewerId };
+    const rows: Price[] = prices.map((p) => ({ id: uid("p"), itemId: id, storeId: p.storeId, price: p.price, date: today(), userId: viewerId }));
+    mutate(
+      (s) => ({ ...s, items: [...s.items, full], prices: [...s.prices, ...rows] }),
+      () => server.addItemAction({ ...item, id }, rows.map(({ id, storeId, price, date }) => ({ id, storeId, price, date }))),
+    );
     return id;
   },
-  updateItem(id: string, patch: Partial<Item>) {
-    update((d) => ({ ...d, items: d.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) }));
-  },
   deleteItem(id: string) {
-    update((d) => ({
-      ...d,
-      items: d.items.filter((i) => i.id !== id),
-      prices: d.prices.filter((p) => p.itemId !== id),
-      reviews: d.reviews.filter((r) => r.itemId !== id),
-      compare: d.compare.filter((c) => c !== id),
-    }));
+    setCompare(compare.filter((c) => c !== id));
+    mutate(
+      (s) => ({ ...s, items: s.items.filter((i) => i.id !== id), prices: s.prices.filter((p) => p.itemId !== id), reviews: s.reviews.filter((r) => r.itemId !== id) }),
+      () => server.deleteItemAction(id),
+    );
   },
-  addPrice(p: Omit<Price, "id">) {
-    update((d) => ({ ...d, prices: [...d.prices, { ...p, id: uid("p") }] }));
+  addPrice(p: Omit<Price, "id" | "userId">) {
+    const row = { ...p, id: uid("p") };
+    mutate((s) => ({ ...s, prices: [...s.prices, { ...row, userId: viewerId }] }), () => server.addPriceAction(row));
   },
   deletePrice(id: string) {
-    update((d) => ({ ...d, prices: d.prices.filter((p) => p.id !== id) }));
+    mutate((s) => ({ ...s, prices: s.prices.filter((p) => p.id !== id) }), () => server.deletePriceAction(id));
   },
-  addReview(r: Omit<Review, "id">) {
-    update((d) => ({ ...d, reviews: [{ ...r, id: uid("r") }, ...d.reviews] }));
+  /** Posting again on the same item replaces your earlier review. */
+  addReview(r: Omit<Review, "id" | "author" | "userId">, authorName: string) {
+    const row = { ...r, id: uid("r") };
+    const mine = (x: Review) => x.itemId === r.itemId && !!viewerId && x.userId === viewerId;
+    mutate(
+      (s) => ({ ...s, reviews: [{ ...row, author: authorName, userId: viewerId }, ...s.reviews.filter((x) => !mine(x))] }),
+      () => server.addReviewAction(row),
+    );
   },
   deleteReview(id: string) {
-    update((d) => ({ ...d, reviews: d.reviews.filter((r) => r.id !== id) }));
+    mutate((s) => ({ ...s, reviews: s.reviews.filter((r) => r.id !== id) }), () => server.deleteReviewAction(id));
   },
   addStore(name: string, color: string): Store {
     const store = { id: uid("store"), name, color };
-    update((d) => ({ ...d, stores: [...d.stores, store] }));
+    mutate((s) => ({ ...s, stores: [...s.stores, { ...store, userId: viewerId }] }), () => server.addStoreAction(store));
     return store;
   },
   toggleCompare(id: string) {
-    update((d) => ({
-      ...d,
-      compare: d.compare.includes(id) ? d.compare.filter((c) => c !== id) : [...d.compare, id].slice(-4),
-    }));
+    setCompare(compare.includes(id) ? compare.filter((c) => c !== id) : [...compare, id].slice(-4));
   },
   clearCompare() {
-    update((d) => ({ ...d, compare: [] }));
-  },
-  reset() {
-    commit(buildSeed());
-  },
-  importJSON(json: string) {
-    const parsed = JSON.parse(json) as DB;
-    if (!Array.isArray(parsed.items) || !Array.isArray(parsed.stores)) throw new Error("Not a valid export file");
-    commit({ ...buildSeed(), ...parsed, compare: parsed.compare ?? [] });
+    setCompare([]);
   },
 };

@@ -42,6 +42,20 @@ const rows: Row[] = [
   ["egg-10", "🥚", "Fresh Chicken Eggs No.2 (10 pcs)", "ไข่ไก่ เบอร์ 2", "CP", "Fresh", 10, "pcs", 45, 52, { Grade: "No. 2" }],
 ];
 
+// Real barcodes + front photos from Open Food Facts (ODbL / CC BY-SA), each checked by eye.
+// Items without a confident match keep their emoji.
+const OFF_IMG = "https://images.openfoodfacts.org/images/products";
+const real: Record<string, { barcode: string; imageUrl: string }> = {
+  "coke-325": { barcode: "8851959132012", imageUrl: `${OFF_IMG}/885/195/913/2012/front_en.36.400.jpg` },
+  "coke-zero-325": { barcode: "8851959132074", imageUrl: `${OFF_IMG}/885/195/913/2074/front_en.7.400.jpg` },
+  "oishi-green-500": { barcode: "8854698005050", imageUrl: `${OFF_IMG}/885/469/800/5050/front_en.72.400.jpg` },
+  "m150-150": { barcode: "8851123240758", imageUrl: `${OFF_IMG}/885/112/324/0758/front_th.7.400.jpg` },
+  "lactasoy-300": { barcode: "8850267112129", imageUrl: `${OFF_IMG}/885/026/711/2129/front_en.25.400.jpg` },
+  "mama-tomyum-55": { barcode: "8850987101021", imageUrl: `${OFF_IMG}/885/098/710/1021/front_en.25.400.jpg` },
+  "birdy-180": { barcode: "8850250000365", imageUrl: `${OFF_IMG}/885/025/000/0365/front_en.23.400.jpg` },
+  "dutchmill-180": { barcode: "8851717040030", imageUrl: `${OFF_IMG}/885/171/704/0030/front_th.27.400.jpg` },
+};
+
 const reviewsSeed: Omit<Review, "id">[] = [
   { itemId: "coke-325", rating: 5, title: "Classic", body: "Always cold at 7-Eleven, cheaper per can at Big C if you buy a 6-pack.", author: "Ploy", storeId: "7eleven", date: "2026-10-12" },
   { itemId: "coke-zero-325", rating: 4, title: "Good zero option", body: "Tastes close to the original. Prefer the can over the bottle.", author: "Ton", date: "2026-10-20" },
@@ -62,6 +76,7 @@ export function buildSeed(): DB {
     ([id, emoji, name, nameTh, brand, category, size, unit, , , attributes]) => ({
       id, emoji, name, nameTh, brand, category, size, unit,
       attributes: attributes ?? {},
+      ...real[id],
       createdAt: SEED_DATE,
     }),
   );

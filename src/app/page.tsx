@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useDB } from "@/lib/store";
+import { useDB, useSyncStatus } from "@/lib/store";
 import { baht, bestPrice, latestPrices, ratingStats, savings, UNIT_BASE, unitPrice } from "@/lib/stats";
-import { CompareToggle, Stars, StoreBadge } from "@/components/ui";
+import { CompareToggle, ItemImage, Stars, StoreBadge } from "@/components/ui";
 
 type Sort = "rating" | "price" | "unit" | "savings" | "name";
 
 export default function BrowsePage() {
   const db = useDB();
+  const status = useSyncStatus();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("All");
   const [store, setStore] = useState("all");
@@ -90,7 +91,11 @@ export default function BrowsePage() {
         ))}
       </div>
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && !db.items.length && status === "loading" ? (
+        <div className="card p-10 text-center text-zinc-500">Loading items…</div>
+      ) : rows.length === 0 && !db.items.length && status === "error" ? (
+        <div className="card p-10 text-center text-red-600">Can&apos;t reach the database. Check your connection and refresh.</div>
+      ) : rows.length === 0 ? (
         <div className="card p-10 text-center text-zinc-500">
           Nothing matches. <Link href="/add" className="text-indigo-600 underline">Add it?</Link>
         </div>
@@ -99,7 +104,7 @@ export default function BrowsePage() {
           {rows.map(({ item, best, prices, rating, save }) => (
             <Link key={item.id} href={`/items/${item.id}`} className="card group flex flex-col p-4 transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-zinc-100 text-2xl dark:bg-zinc-800">{item.emoji || "📦"}</div>
+                <ItemImage item={item} />
                 <div className="min-w-0 flex-1">
                   <div className="text-xs text-zinc-500">{item.brand} · {item.category}</div>
                   <h2 className="font-semibold leading-snug group-hover:text-indigo-600">{item.name}</h2>
@@ -133,7 +138,10 @@ export default function BrowsePage() {
           ))}
         </div>
       )}
-      <p className="text-center text-xs text-zinc-500">Sample prices are illustrative — update them with what you see on the shelf.</p>
+      <p className="text-center text-xs text-zinc-500">Shared with everyone using Shelfie. Sample prices are illustrative — update them with what you see on the shelf.
+        <br />
+        Product photos and barcodes from <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer" className="underline">Open Food Facts</a> (ODbL / CC BY-SA).
+      </p>
     </div>
   );
 }

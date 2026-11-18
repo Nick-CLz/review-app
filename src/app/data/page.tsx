@@ -1,50 +1,42 @@
 "use client";
 
-import { useState } from "react";
-import { actions, useDB } from "@/lib/store";
+import { refresh, useDB, useSyncStatus } from "@/lib/store";
 
 export default function DataPage() {
   const db = useDB();
-  const [msg, setMsg] = useState("");
+  const status = useSyncStatus();
 
   function exportJSON() {
-    const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json" });
+    const { compare: _compare, ...shared } = db;
+    void _compare;
+    const blob = new Blob([JSON.stringify(shared, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `shelfie-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `shelfie-${new Date().toLocaleDateString("en-CA")}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
 
-  async function importJSON(file: File) {
-    try {
-      actions.importJSON(await file.text());
-      setMsg("Imported ✓");
-    } catch (e) {
-      setMsg(`Import failed: ${(e as Error).message}`);
-    }
-  }
-
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold">Your data</h1>
+      <h1 className="text-2xl font-bold">Data</h1>
       <p className="text-sm text-zinc-500">
-        Everything is saved in this browser only. Export a backup to move it to another device or share with friends.
+        Items, prices, reviews and stores are saved in a shared database, so everyone sees the same data.
+        Your compare list stays in this browser only.
       </p>
-      <div className="card grid gap-3 p-5 sm:grid-cols-3">
-        <button className="btn-primary" onClick={exportJSON}>Export JSON</button>
-        <label className="btn-ghost cursor-pointer">
-          Import JSON
-          <input type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importJSON(e.target.files[0])} />
-        </label>
-        <button
-          className="btn-ghost text-red-600"
-          onClick={() => confirm("Replace all your data with the sample Big C / 7-Eleven data?") && (actions.reset(), setMsg("Reset to sample data ✓"))}
-        >
-          Reset to sample
-        </button>
+      <div className="card grid gap-3 p-5 sm:grid-cols-2">
+        <button className="btn-primary" onClick={exportJSON} disabled={!db.items.length}>Download backup (JSON)</button>
+        <button className="btn-ghost" onClick={() => refresh()}>Refresh now</button>
       </div>
-      {msg && <p className="text-sm">{msg}</p>}
+      <div className="card grid grid-cols-2 gap-3 p-5 text-sm sm:grid-cols-4">
+        {[["Items", db.items.length], ["Prices", db.prices.length], ["Reviews", db.reviews.length], ["Stores", db.stores.length]].map(([k, v]) => (
+          <div key={k}>
+            <div className="text-2xl font-bold">{v}</div>
+            <div className="text-zinc-500">{k}</div>
+          </div>
+        ))}
+        <div className="col-span-full text-xs text-zinc-500">Status: {status}</div>
+      </div>
       <div className="card p-5 text-sm">
         <h2 className="mb-2 font-semibold">Stores</h2>
         <ul className="space-y-1">

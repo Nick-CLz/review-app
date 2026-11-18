@@ -68,3 +68,17 @@ export function CompareToggle({ itemId, compact = false }: { itemId: string; com
     </button>
   );
 }
+
+/** Product photo when we have one, otherwise the emoji. */
+export function ItemImage({ item, className = "h-12 w-12 text-2xl" }: { item: { name: string; emoji?: string; imageUrl?: string }; className?: string }) {
+  return (
+    <div className={`grid shrink-0 place-items-center overflow-hidden rounded-lg bg-white ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700 ${className}`}>
+      {item.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- arbitrary external hosts
+        <img src={item.imageUrl} alt={item.name} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-contain" />
+      ) : (
+        item.emoji || "📦"
+      )}
+    </div>
+  );
+}

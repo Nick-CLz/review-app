@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { actions, useDB } from "@/lib/store";
 import type { Unit } from "@/lib/types";
+import { ProductFinder } from "@/components/ProductFinder";
+import { ItemImage } from "@/components/ui";
+import { SignInGate } from "@/components/auth";
 
 const EMOJIS = ["📦", "🥤", "💧", "☕", "🍵", "🥛", "🍜", "🥔", "🍫", "🍪", "🍞", "🥚", "🍗", "🍎", "🧴", "🪥", "🧻", "🧼", "💊", "🔋", "📱", "🎧", "👟"];
 
@@ -12,7 +15,7 @@ export default function AddPage() {
   const router = useRouter();
   const categories = [...new Set(db.items.map((i) => i.category))].sort();
 
-  const [f, setF] = useState({ name: "", nameTh: "", brand: "", category: "", size: "", unit: "ml" as Unit, barcode: "", emoji: "📦" });
+  const [f, setF] = useState({ name: "", nameTh: "", brand: "", category: "", size: "", unit: "ml" as Unit, barcode: "", emoji: "📦", imageUrl: "" });
   const [attrs, setAttrs] = useState<{ k: string; v: string }[]>([{ k: "", v: "" }]);
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [newStore, setNewStore] = useState({ name: "", color: "#2563eb" });
@@ -24,10 +27,11 @@ export default function AddPage() {
     e.preventDefault();
     const size = parseFloat(f.size);
     if (!f.name.trim() || !f.category.trim() || !(size > 0)) return setErr("Name, category and a positive size are required.");
+    if (f.imageUrl.trim() && !f.imageUrl.trim().startsWith("https://")) return setErr("Photo URL must start with https://");
     const id = actions.addItem(
       {
         name: f.name.trim(), nameTh: f.nameTh.trim() || undefined, brand: f.brand.trim() || "—", category: f.category.trim(),
-        size, unit: f.unit, barcode: f.barcode.trim() || undefined, emoji: f.emoji,
+        size, unit: f.unit, barcode: f.barcode.trim() || undefined, emoji: f.emoji, imageUrl: f.imageUrl.trim() || undefined,
         attributes: Object.fromEntries(attrs.filter((a) => a.k.trim() && a.v.trim()).map((a) => [a.k.trim(), a.v.trim()])),
       },
       Object.entries(prices).map(([storeId, v]) => ({ storeId, price: parseFloat(v) })).filter((p) => p.price > 0),
@@ -36,13 +40,36 @@ export default function AddPage() {
   }
 
   return (
+    <SignInGate action="add items">
     <form onSubmit={submit} className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Add an item</h1>
-        <p className="text-sm text-zinc-500">Anything works — a snack, a phone, a shampoo. Add custom specs to compare on.</p>
+        <p className="text-sm text-zinc-500">Anything works — a snack, a phone, a shampoo. Find a real product below, or fill the form by hand.</p>
       </div>
 
+      <ProductFinder
+        onPick={(p) => {
+          setF((cur) => ({
+            ...cur,
+            name: p.name,
+            nameTh: p.nameTh ?? "",
+            brand: p.brand,
+            size: p.size ? String(p.size) : cur.size,
+            unit: p.unit ?? cur.unit,
+            barcode: p.barcode,
+            imageUrl: p.imageUrl ?? "",
+          }));
+          setErr("");
+        }}
+      />
+
       <section className="card space-y-4 p-5">
+        {f.imageUrl && (
+          <div className="flex items-center gap-3">
+            <ItemImage item={{ name: f.name, imageUrl: f.imageUrl }} className="h-20 w-20" />
+            <button type="button" className="text-xs text-zinc-500 underline" onClick={() => setF({ ...f, imageUrl: "" })}>Remove photo</button>
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Name *"><input className="input" value={f.name} onChange={set("name")} placeholder="e.g. Pepsi Max Can" /></Field>
           <Field label="Thai name"><input className="input" value={f.nameTh} onChange={set("nameTh")} placeholder="เป๊ปซี่ แม็กซ์" /></Field>
@@ -60,6 +87,9 @@ export default function AddPage() {
             </div>
           </Field>
           <Field label="Barcode"><input className="input" value={f.barcode} onChange={set("barcode")} inputMode="numeric" /></Field>
+          <div className="sm:col-span-2">
+            <Field label="Photo URL (https, optional)"><input className="input" type="url" value={f.imageUrl} onChange={set("imageUrl")} placeholder="https://…" /></Field>
+          </div>
         </div>
         <Field label="Icon">
           <div className="flex flex-wrap gap-1">
@@ -105,6 +135,7 @@ export default function AddPage() {
       {err && <p className="text-sm text-red-600">{err}</p>}
       <button className="btn-primary w-full py-3">Save item</button>
     </form>
+    </SignInGate>
   );
 }
 

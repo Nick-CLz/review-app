@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { actions, useDB } from "@/lib/store";
 import { baht, bestPrice, latestPrices, ratingStats, UNIT_BASE, unitPrice } from "@/lib/stats";
-import { Stars, StoreBadge } from "@/components/ui";
+import { ItemImage, Stars, StoreBadge } from "@/components/ui";
 import type { Item } from "@/lib/types";
 
 type Cell = { node: React.ReactNode; score?: number };
@@ -106,7 +106,7 @@ export default function ComparePage() {
                   {items.map((i) => (
                     <th key={i.id} className="p-3 text-left align-top font-normal">
                       <div className="flex items-start gap-2">
-                        <span className="text-3xl">{i.emoji || "📦"}</span>
+                        <ItemImage item={i} className="h-14 w-14 text-3xl" />
                         <div className="min-w-0 flex-1">
                           <Link href={`/items/${i.id}`} className="font-semibold hover:text-indigo-600">{i.name}</Link>
                           {i.nameTh && <div className="text-xs text-zinc-500">{i.nameTh}</div>}

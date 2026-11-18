@@ -3,18 +3,23 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { actions, today, useDB } from "@/lib/store";
+import { actions, today, useDB, useSyncStatus } from "@/lib/store";
 import { baht, latestPrices, ratingStats, savings, UNIT_BASE, unitPrice } from "@/lib/stats";
-import { CompareToggle, StarInput, Stars, StoreBadge } from "@/components/ui";
+import { CompareToggle, ItemImage, StarInput, Stars, StoreBadge } from "@/components/ui";
+import { SignInGate, useViewer } from "@/components/auth";
+import type { Review } from "@/lib/types";
 
 export default function ItemPage() {
   const { id } = useParams<{ id: string }>();
   const db = useDB();
   const router = useRouter();
+  const status = useSyncStatus();
+  const viewer = useViewer();
   const item = db.items.find((i) => i.id === id);
   const storeMap = useMemo(() => new Map(db.stores.map((s) => [s.id, s])), [db.stores]);
 
   if (!item) {
+    if (status === "loading") return <div className="card p-10 text-center text-zinc-500">Loading…</div>;
     return (
       <div className="card p-10 text-center">
         <p className="text-zinc-500">Item not found.</p>
@@ -35,7 +40,19 @@ export default function ItemPage() {
       <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white">← All items</Link>
 
       <section className="card flex flex-wrap items-start gap-5 p-6">
-        <div className="grid h-20 w-20 place-items-center rounded-xl bg-zinc-100 text-5xl dark:bg-zinc-800">{item.emoji || "📦"}</div>
+        <div className="space-y-1">
+          <ItemImage item={item} className="h-28 w-28 text-5xl" />
+          {item.imageUrl?.startsWith("https://images.openfoodfacts.org/") && (
+            <a
+              href={item.barcode ? `https://world.openfoodfacts.org/product/${item.barcode}` : "https://world.openfoodfacts.org"}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-28 text-center text-[10px] leading-tight text-zinc-500 hover:underline"
+            >
+              Photo: Open Food Facts (CC BY-SA)
+            </a>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm text-zinc-500">{item.brand} · {item.category}</div>
           <h1 className="text-2xl font-bold">{item.name}</h1>
@@ -52,6 +69,7 @@ export default function ItemPage() {
         </div>
         <div className="flex gap-2">
           <CompareToggle itemId={item.id} />
+          {viewer.canDelete(item) && (
           <button
             className="btn-ghost text-red-600"
             onClick={() => {
@@ -63,6 +81,7 @@ export default function ItemPage() {
           >
             Delete
           </button>
+          )}
         </div>
       </section>
 
@@ -92,7 +111,11 @@ export default function ItemPage() {
             </tbody>
           </table>
           {!prices.length && <p className="text-sm text-zinc-500">No prices yet.</p>}
-          <AddPrice itemId={item.id} />
+          <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+            <SignInGate action="log a price">
+              <AddPrice itemId={item.id} />
+            </SignInGate>
+          </div>
           {history.length > prices.length && (
             <details className="mt-4 text-sm">
               <summary className="cursor-pointer text-zinc-500">Price history ({history.length})</summary>
@@ -102,7 +125,9 @@ export default function ItemPage() {
                     <span className="text-zinc-500">{p.date}</span>
                     <StoreBadge store={storeMap.get(p.storeId)} />
                     <span>{baht(p.price)}</span>
-                    <button className="text-xs text-zinc-400 hover:text-red-600" onClick={() => actions.deletePrice(p.id)} aria-label="Delete price">✕</button>
+                    {viewer.canDelete(p) ? (
+                      <button className="text-xs text-zinc-400 hover:text-red-600" onClick={() => actions.deletePrice(p.id)} aria-label="Delete price">✕</button>
+                    ) : <span className="w-3" />}
                   </li>
                 ))}
               </ul>
@@ -126,14 +151,24 @@ export default function ItemPage() {
                 ))}
               </div>
             )}
-            <ReviewForm itemId={item.id} />
+            <SignInGate action="write a review">
+              <ReviewForm
+                key={reviews.find((r) => viewer.userId && r.userId === viewer.userId)?.id ?? "new"}
+                itemId={item.id}
+                mine={reviews.find((r) => viewer.userId && r.userId === viewer.userId)}
+                authorName={viewer.name}
+              />
+            </SignInGate>
           </div>
           {reviews.map((r) => (
             <article key={r.id} className="card p-4">
               <div className="flex items-center gap-2">
                 <Stars value={r.rating} />
                 <b className="text-sm">{r.title}</b>
-                <button className="ml-auto text-xs text-zinc-400 hover:text-red-600" onClick={() => actions.deleteReview(r.id)} aria-label="Delete review">✕</button>
+                {viewer.userId && r.userId === viewer.userId && <span className="ml-auto rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Your review</span>}
+                {viewer.canDelete(r) && (
+                  <button className={`${viewer.userId && r.userId === viewer.userId ? "" : "ml-auto "}text-xs text-zinc-400 hover:text-red-600`} onClick={() => confirm("Delete this review?") && actions.deleteReview(r.id)} aria-label="Delete review">✕</button>
+                )}
               </div>
               {r.body && <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">{r.body}</p>}
               <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
@@ -166,7 +201,7 @@ function AddPrice({ itemId }: { itemId: string }) {
 
   return (
     <form
-      className="mt-4 space-y-2 border-t border-zinc-100 pt-4 dark:border-zinc-800"
+      className="space-y-2"
       onSubmit={(e) => {
         e.preventDefault();
         const n = parseFloat(price);
@@ -190,14 +225,14 @@ function AddPrice({ itemId }: { itemId: string }) {
   );
 }
 
-function ReviewForm({ itemId }: { itemId: string }) {
+function ReviewForm({ itemId, mine, authorName }: { itemId: string; mine?: Review; authorName: string }) {
   const db = useDB();
-  const [rating, setRating] = useState(0);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [author, setAuthor] = useState("");
-  const [storeId, setStoreId] = useState("");
+  const [rating, setRating] = useState(mine?.rating ?? 0);
+  const [title, setTitle] = useState(mine?.title ?? "");
+  const [body, setBody] = useState(mine?.body ?? "");
+  const [storeId, setStoreId] = useState(mine?.storeId ?? "");
   const [err, setErr] = useState("");
+  const [saved, setSaved] = useState(false);
 
   return (
     <form
@@ -206,22 +241,24 @@ function ReviewForm({ itemId }: { itemId: string }) {
         e.preventDefault();
         if (!rating) return setErr("Pick a star rating.");
         if (!title.trim()) return setErr("Add a short title.");
-        actions.addReview({ itemId, rating, title: title.trim(), body: body.trim(), author: author.trim(), storeId: storeId || undefined, date: today() });
-        setRating(0); setTitle(""); setBody(""); setErr("");
+        actions.addReview({ itemId, rating, title: title.trim(), body: body.trim(), storeId: storeId || undefined, date: today() }, authorName);
+        setErr("");
+        setSaved(true);
       }}
     >
-      <StarInput value={rating} onChange={(n) => { setRating(n); setErr(""); }} />
-      <input className="input" placeholder="Title — e.g. “Best value noodle”" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Review title" />
-      <textarea className="input min-h-20" placeholder="What did you think? Taste, quality, value…" value={body} onChange={(e) => setBody(e.target.value)} aria-label="Review body" />
-      <div className="grid grid-cols-2 gap-2">
-        <input className="input" placeholder="Your name (optional)" value={author} onChange={(e) => setAuthor(e.target.value)} aria-label="Your name" />
-        <select className="input" value={storeId} onChange={(e) => setStoreId(e.target.value)} aria-label="Bought at">
-          <option value="">Bought at… (optional)</option>
-          {db.stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
+      {mine && <p className="text-xs text-zinc-500">You reviewed this on {mine.date}. Saving again updates your review.</p>}
+      <StarInput value={rating} onChange={(n) => { setRating(n); setErr(""); setSaved(false); }} />
+      <input className="input" placeholder="Title — e.g. “Best value noodle”" value={title} onChange={(e) => { setTitle(e.target.value); setSaved(false); }} aria-label="Review title" />
+      <textarea className="input min-h-20" placeholder="What did you think? Taste, quality, value…" value={body} onChange={(e) => { setBody(e.target.value); setSaved(false); }} aria-label="Review body" />
+      <select className="input" value={storeId} onChange={(e) => setStoreId(e.target.value)} aria-label="Bought at">
+        <option value="">Bought at… (optional)</option>
+        {db.stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
       {err && <p className="text-sm text-red-600">{err}</p>}
-      <button className="btn-primary">Post review</button>
+      <div className="flex items-center gap-3">
+        <button className="btn-primary">{mine ? "Update review" : "Post review"}</button>
+        <span className="text-xs text-zinc-500">{saved ? "✓ Saved" : `Posting as ${authorName || "you"}`}</span>
+      </div>
     </form>
   );
 }
