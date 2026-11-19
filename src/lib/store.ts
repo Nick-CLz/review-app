@@ -8,6 +8,7 @@
 
 import { useSyncExternalStore } from "react";
 import * as server from "@/app/actions";
+import type { ActionResult } from "@/app/actions";
 import type { DB, Item, Price, Review, Store } from "./types";
 
 type Shared = Omit<DB, "compare" | "version">;
@@ -28,6 +29,7 @@ let viewerId: string | undefined; // set by <ViewerSync> from the Clerk session
 let snapshot: DB = SERVER_SNAPSHOT;
 let started = false;
 let pending = 0;
+let writes = 0; // bumped by every write, so a refresh that started before it can be thrown away
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -43,11 +45,14 @@ function safeSet(key: string, value: string) {
 }
 
 export async function refresh() {
+  const startedAt = writes;
   try {
     const res = await fetch("/api/db", { cache: "no-store" });
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
     const data = (await res.json()) as Shared;
-    if (pending > 0) return; // a write is in flight; its own refresh will land the final state
+    // A write started or finished while this request was in flight, so the response may be
+    // older than what's on screen. The refresh that follows that write will land the final state.
+    if (pending > 0 || writes !== startedAt) return;
     shared = { stores: data.stores, items: data.items, prices: data.prices, reviews: data.reviews };
     safeSet(CACHE_KEY, JSON.stringify(shared));
     status = "ready";
@@ -98,21 +103,27 @@ export function setViewerId(id: string | undefined) {
 }
 
 /** Apply a change locally right away, persist it on the server, then re-sync. */
-async function mutate(local: (s: Shared) => Shared, remote: () => Promise<void>) {
+async function mutate(local: (s: Shared) => Shared, remote: () => Promise<ActionResult>) {
   shared = local(shared);
   pending++;
+  writes++;
   status = "saving";
   emit();
+  let error: string | undefined;
   try {
-    await remote();
+    const result = await remote();
+    if (!result.ok) error = result.error;
   } catch (e) {
+    // Network failure or a server crash before the action could report back
     console.error(e);
-    lastError = viewerId
-      ? "Couldn't save — your change was undone. Check your inputs and try again."
-      : "Please sign in to make changes. Your change was undone.";
-    alert(lastError);
+    error = "Couldn't reach the server.";
   } finally {
     pending--;
+    writes++;
+  }
+  if (error) {
+    lastError = `${error} Your change was undone.`;
+    alert(lastError);
   }
   if (pending === 0) await refresh();
 }
