@@ -39,15 +39,19 @@ function AddPicker({ exclude, onPick }: { exclude: string[]; onPick: (id: string
 }
 
 function verdicts(items: Item[]) {
-  const pick = (f: (i: Item) => number, dir: "max" | "min") =>
-    items.reduce((best, i) => ((dir === "max" ? f(i) > f(best) : f(i) < f(best)) ? i : best));
+  // Every car sharing the best value wins — ties are named together, not resolved by list order.
+  const pick = (f: (i: Item) => number, dir: "max" | "min") => {
+    const vals = items.map(f);
+    const best = dir === "max" ? Math.max(...vals) : Math.min(...vals);
+    return items.filter((_, idx) => vals[idx] === best);
+  };
   return [
-    { label: "🏆 คะแนนรวมดีสุด", item: pick(overallScore, "max") },
-    { label: "💸 ราคาถูกสุด", item: pick((i) => Number(i.specs.price), "min") },
-    { label: "⛽ ค่าพลังงานถูกสุด", item: pick((i) => Number(i.specs.energyCost), "min") },
-    { label: "🚀 แรงสุด", item: pick((i) => Number(i.specs.powerHp), "max") },
-    { label: "🧳 ใช้งานจริงดีสุด", item: pick((i) => carScores(i).practical, "max") },
-    { label: "🛡️ ปลอดภัยสุด", item: pick((i) => carScores(i).safety, "max") },
+    { label: "🏆 คะแนนรวมดีสุด", winners: pick(overallScore, "max") },
+    { label: "💸 ราคาถูกสุด", winners: pick((i) => Number(i.specs.price), "min") },
+    { label: "⛽ ค่าพลังงานถูกสุด", winners: pick((i) => Number(i.specs.energyCost), "min") },
+    { label: "🚀 แรงสุด", winners: pick((i) => Number(i.specs.powerHp), "max") },
+    { label: "🧳 ใช้งานจริงดีสุด", winners: pick((i) => carScores(i).practical, "max") },
+    { label: "🛡️ ปลอดภัยสุด", winners: pick((i) => carScores(i).safety, "max") },
   ];
 }
 
@@ -122,9 +126,18 @@ export default function CompareView() {
 
       <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {v.map((x) => (
-          <div key={x.label} className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm">
-            <span className="text-muted">{x.label}</span>
-            <span className="font-semibold">{fullName(x.item)}</span>
+          <div key={x.label} className="flex items-start justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm">
+            <span className="shrink-0 text-muted">{x.label}</span>
+            <span className="text-right font-semibold">
+              {x.winners.length === items.length ? (
+                <span className="text-muted">เท่ากันทุกคัน</span>
+              ) : (
+                <>
+                  {x.winners.map((w) => fullName(w)).join(", ")}
+                  {x.winners.length > 1 && <span className="ml-1 text-xs font-normal text-muted">(เสมอ)</span>}
+                </>
+              )}
+            </span>
           </div>
         ))}
       </section>
