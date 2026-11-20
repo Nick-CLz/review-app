@@ -83,6 +83,11 @@ export function toggleCompare(id: string, category: string, categoryOf: (id: str
   return same.length !== cur.length ? ("replaced" as const) : ("added" as const);
 }
 
+/** Replace the whole compare list, e.g. when adopting a shared link. */
+export function setCompare(ids: string[]) {
+  write(COMPARE, ids.slice(0, MAX_COMPARE));
+}
+
 export function clearCompare() {
   write(COMPARE, []);
 }

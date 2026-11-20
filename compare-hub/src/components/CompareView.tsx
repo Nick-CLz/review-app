@@ -1,16 +1,55 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LIVE_CATEGORIES, getCategory } from "@/lib/categories";
 import { getProduct } from "@/lib/products";
 import { formatSpec, winners } from "@/lib/format";
+import type { Product } from "@/lib/types";
 import { BuyAction, DataBadge, Price } from "./ProductBits";
-import { clearCompare, removeFromCompare, useCompare } from "@/lib/store";
+import { MAX_COMPARE, clearCompare, removeFromCompare, setCompare, useCompare } from "@/lib/store";
 import RatingBadge from "./RatingBadge";
 
+/** Parse `?ids=a,b,c`: known products only, one category (the first's), no repeats, at most 4. */
+function parseShared(raw: string | null): Product[] {
+  const out: Product[] = [];
+  for (const id of new Set((raw ?? "").split(",").map((s) => s.trim()).filter(Boolean))) {
+    const p = getProduct(id);
+    if (p && (!out.length || p.category === out[0].category) && out.length < MAX_COMPARE) out.push(p);
+  }
+  return out;
+}
+
 export default function CompareView() {
-  const ids = useCompare();
-  const items = ids.map(getProduct).filter((p) => p !== undefined);
+  const router = useRouter();
+  const params = useSearchParams();
+  const mine = useCompare();
+  const shared = parseShared(params.get("ids"));
+  const [onlyDiff, setOnlyDiff] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const items = shared.length ? shared : mine.map(getProduct).filter((p) => p !== undefined);
+  // A link someone sent you, different from the list saved in this browser.
+  const viewingShared = shared.length > 0 && shared.map((p) => p.id).join() !== mine.join();
+
+  /** Editing a shared view makes it this browser's list and drops the link from the URL. */
+  function edit(change: () => void) {
+    if (params.has("ids")) setCompare(items.map((p) => p.id));
+    change();
+    if (params.has("ids")) router.replace("/compare");
+  }
+
+  async function copyLink() {
+    const url = `${window.location.origin}/compare?ids=${items.map((p) => p.id).join(",")}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("คัดลอกลิงก์นี้", url);
+    }
+  }
 
   if (items.length === 0) {
     return (
@@ -32,6 +71,8 @@ export default function CompareView() {
   const c = getCategory(items[0].category)!;
   const win = winners(c.fields, items);
   const winCount = (id: string) => Object.values(win).filter((s) => s.has(id)).length;
+  const differs = (key: string) => new Set(items.map((p) => formatSpec(c.fields.find((f) => f.key === key)!, p.specs[key]))).size > 1;
+  const rows = onlyDiff ? c.fields.filter((f) => differs(f.key)) : c.fields;
   const top = items.length > 1 ? [...items].sort((a, b) => winCount(b.id) - winCount(a.id))[0] : undefined;
 
   return (
@@ -43,17 +84,39 @@ export default function CompareView() {
           </p>
           <h1 className="text-2xl font-bold">เปรียบเทียบ {items.length} แผน</h1>
         </div>
-        <div className="flex gap-2">
-          {items.length < 4 && (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-ghost" onClick={copyLink}>
+            {copied ? "คัดลอกลิงก์แล้ว ✓" : "🔗 แชร์ผลเทียบ"}
+          </button>
+          {!viewingShared && items.length < MAX_COMPARE && (
             <Link href={`/c/${c.slug}`} className="btn-ghost">
               + เพิ่มแผน
             </Link>
           )}
-          <button type="button" className="btn-ghost" onClick={clearCompare}>
-            ล้างทั้งหมด
-          </button>
+          {!viewingShared && (
+            <button type="button" className="btn-ghost" onClick={() => edit(clearCompare)}>
+              ล้างทั้งหมด
+            </button>
+          )}
         </div>
       </div>
+
+      {viewingShared && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm">
+          <span>📨 คุณกำลังดูผลเทียบที่มีคนแชร์มา</span>
+          <button type="button" className="btn-primary" onClick={() => edit(() => {})}>
+            ใช้รายการนี้เป็นของฉัน
+          </button>
+        </div>
+      )}
+
+      {items.length > 1 && (
+        <label className="mt-4 inline-flex cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" checked={onlyDiff} onChange={(e) => setOnlyDiff(e.target.checked)} className="accent-brand" />
+          แสดงเฉพาะหัวข้อที่ต่างกัน
+          {onlyDiff && <span className="text-muted">(ซ่อน {c.fields.length - rows.length} หัวข้อที่เหมือนกัน)</span>}
+        </label>
+      )}
 
       {top && winCount(top.id) > 0 && (
         <p className="mt-4 rounded-xl bg-win px-4 py-3 text-sm text-win-fg">
@@ -78,7 +141,8 @@ export default function CompareView() {
                     <p className="text-xs text-muted">{p.provider}</p>
                     <button
                       type="button"
-                      onClick={() => removeFromCompare(p.id)}
+                      hidden={viewingShared}
+                      onClick={() => edit(() => removeFromCompare(p.id))}
                       className="text-muted hover:text-fg"
                       aria-label={`นำ ${p.name} ออก`}
                     >
@@ -102,7 +166,7 @@ export default function CompareView() {
             </tr>
           </thead>
           <tbody>
-            {c.fields.map((f) => (
+            {rows.map((f) => (
               <tr key={f.key} className="border-b border-line">
                 <th className="sticky left-0 bg-surface px-4 py-3 text-left font-normal text-muted">
                   {f.label}
