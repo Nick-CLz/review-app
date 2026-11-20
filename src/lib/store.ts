@@ -4,25 +4,27 @@
 // - Items, prices, reviews and stores come from Neon via /api/db and are shared by everyone.
 // - Writes go through Server Functions (src/app/actions.ts); the UI updates optimistically,
 //   then re-syncs from the server.
-// - The compare list is personal and stays in this browser's localStorage.
+// - The compare list and shopping list are personal and stay in this browser's localStorage.
 
 import { useSyncExternalStore } from "react";
 import * as server from "@/app/actions";
 import type { ActionResult } from "@/app/actions";
-import type { DB, Item, Price, Review, Store } from "./types";
+import type { DB, Item, ListEntry, Price, Review, Store } from "./types";
 
-type Shared = Omit<DB, "compare" | "version">;
+type Shared = Omit<DB, "compare" | "list" | "version">;
 export type SyncStatus = "loading" | "ready" | "saving" | "error";
 
 const CACHE_KEY = "shelfie-cache-v2"; // last server copy, for an instant first paint
 const COMPARE_KEY = "shelfie-compare-v1";
+const LIST_KEY = "shelfie-list-v1";
 const POLL_MS = 20_000;
 
 const EMPTY: Shared = { stores: [], items: [], prices: [], reviews: [] };
-const SERVER_SNAPSHOT: DB = { version: 1, ...EMPTY, compare: [] };
+const SERVER_SNAPSHOT: DB = { version: 1, ...EMPTY, compare: [], list: [] };
 
 let shared: Shared = EMPTY;
 let compare: string[] = [];
+let list: ListEntry[] = [];
 let status: SyncStatus = "loading";
 let lastError = "";
 let viewerId: string | undefined; // set by <ViewerSync> from the Clerk session
@@ -33,7 +35,8 @@ let writes = 0; // bumped by every write, so a refresh that started before it ca
 const listeners = new Set<() => void>();
 
 function emit() {
-  snapshot = { version: 1, ...shared, compare: compare.filter((id) => shared.items.some((i) => i.id === id)) };
+  const known = (id: string) => shared.items.some((i) => i.id === id);
+  snapshot = { version: 1, ...shared, compare: compare.filter(known), list: list.filter((e) => known(e.itemId)) };
   listeners.forEach((l) => l());
 }
 
@@ -71,6 +74,7 @@ function start() {
     const cached = safeGet(CACHE_KEY);
     if (cached) shared = JSON.parse(cached) as Shared;
     compare = JSON.parse(safeGet(COMPARE_KEY) ?? "[]") as string[];
+    list = parseList(safeGet(LIST_KEY));
   } catch { /* ignore bad cache */ }
   emit();
   refresh();
@@ -79,6 +83,10 @@ function start() {
   window.addEventListener("storage", (e) => {
     if (e.key === COMPARE_KEY) {
       compare = JSON.parse(e.newValue ?? "[]");
+      emit();
+    }
+    if (e.key === LIST_KEY) {
+      list = parseList(e.newValue);
       emit();
     }
   });
@@ -128,6 +136,24 @@ async function mutate(local: (s: Shared) => Shared, remote: () => Promise<Action
   if (pending === 0) await refresh();
 }
 
+function parseList(raw: string | null): ListEntry[] {
+  try {
+    const v = JSON.parse(raw ?? "[]") as unknown;
+    if (!Array.isArray(v)) return [];
+    return v
+      .filter((e): e is ListEntry => !!e && typeof e.itemId === "string" && Number.isInteger(e.qty) && e.qty > 0)
+      .map((e) => ({ itemId: e.itemId, qty: Math.min(e.qty, 99) }));
+  } catch {
+    return [];
+  }
+}
+
+function setList(next: ListEntry[]) {
+  list = next;
+  safeSet(LIST_KEY, JSON.stringify(next));
+  emit();
+}
+
 function setCompare(next: string[]) {
   compare = next;
   safeSet(COMPARE_KEY, JSON.stringify(next));
@@ -150,6 +176,7 @@ export const actions = {
   },
   deleteItem(id: string) {
     setCompare(compare.filter((c) => c !== id));
+    if (list.some((e) => e.itemId === id)) setList(list.filter((e) => e.itemId !== id));
     mutate(
       (s) => ({ ...s, items: s.items.filter((i) => i.id !== id), prices: s.prices.filter((p) => p.itemId !== id), reviews: s.reviews.filter((r) => r.itemId !== id) }),
       () => server.deleteItemAction(id),
@@ -184,5 +211,18 @@ export const actions = {
   },
   clearCompare() {
     setCompare([]);
+  },
+  /** Add one more of an item to the shopping list. */
+  addToList(itemId: string) {
+    const cur = list.find((e) => e.itemId === itemId);
+    setList(cur ? list.map((e) => (e.itemId === itemId ? { ...e, qty: Math.min(e.qty + 1, 99) } : e)) : [...list, { itemId, qty: 1 }]);
+  },
+  /** Set the quantity; 0 removes the item. */
+  setListQty(itemId: string, qty: number) {
+    const n = Math.max(0, Math.min(99, Math.round(qty)));
+    setList(n ? list.map((e) => (e.itemId === itemId ? { ...e, qty: n } : e)) : list.filter((e) => e.itemId !== itemId));
+  },
+  clearList() {
+    setList([]);
   },
 };

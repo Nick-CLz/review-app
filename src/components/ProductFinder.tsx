@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useDB } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 
 export interface FoundProduct {
   barcode: string;
@@ -19,6 +20,7 @@ export interface FoundProduct {
 /** Search Open Food Facts by name or barcode and hand the chosen product back to the form. */
 export function ProductFinder({ onPick }: { onPick: (p: FoundProduct) => void }) {
   const db = useDB();
+  const t = useT();
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -34,13 +36,13 @@ export function ProductFinder({ onPick }: { onPick: (p: FoundProduct) => void })
       const isBarcode = /^\d{6,14}$/.test(term);
       const res = await fetch(`/api/lookup?${new URLSearchParams(isBarcode ? { barcode: term } : { q: term })}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Search failed");
+      if (!res.ok) throw new Error(data.error ?? res.statusText);
       const list: FoundProduct[] = isBarcode ? (data.product ? [data.product] : []) : data.products;
       setResults(list);
-      if (!list.length) setErr(isBarcode ? "No product with that barcode in Open Food Facts." : "No matches. Try English or Thai, or the barcode.");
+      if (!list.length) setErr(isBarcode ? t("finder.noBarcode") : t("finder.noMatch"));
     } catch (e) {
       setResults(null);
-      setErr(`${(e as Error).message}. Open Food Facts limits searches to about 10 a minute — wait a moment and try again.`);
+      setErr(t("finder.failed", { error: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -49,10 +51,10 @@ export function ProductFinder({ onPick }: { onPick: (p: FoundProduct) => void })
   return (
     <section className="card space-y-3 border-indigo-200 p-5 dark:border-indigo-900">
       <div>
-        <h2 className="font-semibold">Find a real product</h2>
+        <h2 className="font-semibold">{t("finder.title")}</h2>
         <p className="text-xs text-zinc-500">
-          Search <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer" className="underline">Open Food Facts</a> by
-          name or barcode to fill in the details and photo. Its data is crowd-sourced, so double-check before saving.
+          {t("finder.lead")}{" "}
+          <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer" className="underline">openfoodfacts.org</a>
         </p>
       </div>
       <div className="flex gap-2">
@@ -66,11 +68,11 @@ export function ProductFinder({ onPick }: { onPick: (p: FoundProduct) => void })
               search();
             }
           }}
-          placeholder="e.g. lactasoy, มาม่า, 8850987101021"
-          aria-label="Search real products"
+          placeholder={t("finder.ph")}
+          aria-label={t("finder.aria")}
         />
         <button type="button" className="btn-primary shrink-0" onClick={search} disabled={busy || q.trim().length < 2}>
-          {busy ? "Searching…" : "Search"}
+          {busy ? t("finder.searching") : t("finder.search")}
         </button>
       </div>
       {err && <p className="text-sm text-amber-600">{err}</p>}
@@ -85,7 +87,7 @@ export function ProductFinder({ onPick }: { onPick: (p: FoundProduct) => void })
                     // eslint-disable-next-line @next/next/no-img-element -- Open Food Facts image host
                     <img src={p.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-contain" />
                   ) : (
-                    <span className="text-xs text-zinc-400">no photo</span>
+                    <span className="text-xs text-zinc-400">{t("finder.noPhoto")}</span>
                   )}
                 </div>
                 <div className="min-w-0 flex-1 text-sm">
@@ -95,7 +97,7 @@ export function ProductFinder({ onPick }: { onPick: (p: FoundProduct) => void })
                   </div>
                 </div>
                 {existing ? (
-                  <Link href={`/items/${existing.id}`} className="btn-ghost shrink-0 text-xs">Already added →</Link>
+                  <Link href={`/items/${existing.id}`} className="btn-ghost shrink-0 text-xs">{t("finder.already")}</Link>
                 ) : (
                   <button
                     type="button"
@@ -105,7 +107,7 @@ export function ProductFinder({ onPick }: { onPick: (p: FoundProduct) => void })
                       onPick(p);
                     }}
                   >
-                    {picked === p.barcode ? "✓ Filled" : "Use this"}
+                    {picked === p.barcode ? t("finder.filled") : t("finder.use")}
                   </button>
                 )}
               </li>

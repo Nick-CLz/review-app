@@ -52,4 +52,10 @@ export interface DB {
   prices: Price[];
   reviews: Review[];
   compare: string[]; // item ids queued for comparison
+  list: ListEntry[]; // personal shopping list (this browser only)
+}
+
+export interface ListEntry {
+  itemId: string;
+  qty: number;
 }

@@ -4,6 +4,7 @@ import { Show, SignInButton, UserButton, useAuth, useUser } from "@clerk/nextjs"
 import { useEffect, useState } from "react";
 import { getViewer } from "@/app/actions";
 import { setViewerId } from "@/lib/store";
+import { useT, type TKey } from "@/lib/i18n";
 
 // Admin status is decided on the server (ADMIN_USER_IDS); remembered per user for this tab.
 const adminCache = new Map<string, boolean>();
@@ -44,11 +45,12 @@ export function ViewerSync() {
 }
 
 export function AuthButtons() {
+  const t = useT();
   return (
     <>
       <Show when="signed-out">
         <SignInButton mode="modal">
-          <button className="btn-primary ml-1 px-3 py-1.5">Sign in</button>
+          <button className="btn-primary ml-1 px-3 py-1.5">{t("nav.signIn")}</button>
         </SignInButton>
       </Show>
       <Show when="signed-in">
@@ -61,15 +63,16 @@ export function AuthButtons() {
 }
 
 /** Shows children to signed-in users, and a sign-in prompt to everyone else. */
-export function SignInGate({ children, action }: { children: React.ReactNode; action: string }) {
+export function SignInGate({ children, action }: { children: React.ReactNode; action: TKey }) {
   const { isLoaded, isSignedIn } = useAuth();
-  if (!isLoaded) return <div className="text-sm text-zinc-500">Loading…</div>;
+  const t = useT();
+  if (!isLoaded) return <div className="text-sm text-zinc-500">{t("common.loading")}</div>;
   if (isSignedIn) return <>{children}</>;
   return (
     <div className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-sm dark:border-zinc-700">
-      <p className="mb-2 text-zinc-500">Sign in to {action}.</p>
+      <p className="mb-2 text-zinc-500">{t("gate.signInTo", { action: t(action) })}</p>
       <SignInButton mode="modal">
-        <button type="button" className="btn-primary">Sign in</button>
+        <button type="button" className="btn-primary">{t("nav.signIn")}</button>
       </SignInButton>
     </div>
   );

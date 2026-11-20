@@ -19,7 +19,7 @@ const str = (v: unknown) => (v == null ? undefined : String(v));
 const day = (v: unknown) => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10));
 
 /** Everything except the per-browser compare list. Small enough to ship in one response. */
-export async function readAll(): Promise<Omit<DB, "compare">> {
+export async function readAll(): Promise<Omit<DB, "compare" | "list">> {
   const sql = getSql();
   // to_char keeps dates as plain YYYY-MM-DD, independent of the server's time zone
   const [stores, items, prices, reviews] = (await Promise.all([

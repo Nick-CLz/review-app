@@ -97,5 +97,6 @@ export function buildSeed(): DB {
     prices,
     reviews: reviewsSeed.map((r, i) => ({ ...r, id: `r-seed-${i}` })),
     compare: [],
+    list: [],
   };
 }
