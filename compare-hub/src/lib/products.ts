@@ -1,5 +1,6 @@
 import type { Product, SeedReview } from "./types";
 import { TRAVEL_PRODUCTS } from "./data/travel";
+import { ACCIDENT_PRODUCTS } from "./data/accident";
 
 /**
  * SAMPLE DATA (all categories except travel) — provider names, plans and prices are fictional and exist only to
@@ -177,42 +178,8 @@ export const PRODUCTS: Product[] = [
   // ───────────── ประกันการเดินทาง: real data, see ./data/travel.ts ─────────────
   ...TRAVEL_PRODUCTS,
 
-  // ───────────── อุบัติเหตุ ─────────────
-  {
-    id: "pa-chao-active",
-    category: "accident",
-    name: "เจ้าพระยา PA แอคทีฟ",
-    provider: "เจ้าพระยาประกันภัย",
-    tagline: "สำหรับคนชอบออกกำลังกาย คุ้มครองขี่มอเตอร์ไซค์",
-    badge: "ยอดนิยม",
-    highlights: ["คุ้มครองขับขี่ จยย.", "ค่ารักษา 50,000/ครั้ง", "เบี้ยเท่ากันทุกอายุ"],
-    exclusions: ["แข่งรถ", "เมาสุรา"],
-    specs: { premium: 2490, deathBenefit: 500000, medicalPerAccident: 50000, dailyComp: 1000, motorcycle: true, maxEntryAge: 70 },
-    reviews: [r("บอส", 5, "ขี่มอไซค์ทุกวัน อุ่นใจ", "ล้มเล็กน้อย เคลมค่ารักษาได้ง่าย", "2026-09-28")],
-  },
-  {
-    id: "pa-lanna-senior",
-    category: "accident",
-    name: "ล้านนา PA ซีเนียร์",
-    provider: "ล้านนาโพรเทค",
-    tagline: "ประกันอุบัติเหตุสำหรับผู้สูงอายุ ไม่ต้องตรวจสุขภาพ",
-    highlights: ["รับถึงอายุ 80 ปี", "ไม่ต้องตรวจสุขภาพ", "ชดเชยรายวัน 1,500"],
-    exclusions: ["ไม่คุ้มครองขับขี่ จยย."],
-    specs: { premium: 3200, deathBenefit: 300000, medicalPerAccident: 30000, dailyComp: 1500, motorcycle: false, maxEntryAge: 80 },
-    reviews: [r("ลูกสาวคุณแม่", 4, "ซื้อให้แม่", "สมัครง่าย ไม่ต้องตรวจ", "2026-06-16")],
-  },
-  {
-    id: "pa-andaman-mini",
-    category: "accident",
-    name: "อันดามัน PA มินิ",
-    provider: "อันดามันประกันภัย",
-    tagline: "วันละไม่ถึง 3 บาท คุ้มครองอุบัติเหตุ 24 ชม.",
-    badge: "เบี้ยถูกสุด",
-    highlights: ["เบี้ยปีละ 990", "คุ้มครองทั่วโลก", "สมัครผ่านมือถือ"],
-    exclusions: ["ไม่คุ้มครองขับขี่ จยย.", "ไม่มีชดเชยรายวัน"],
-    specs: { premium: 990, deathBenefit: 200000, medicalPerAccident: 20000, dailyComp: 0, motorcycle: false, maxEntryAge: 65 },
-    reviews: [r("Fah", 4, "ถูกและพอใช้", "เหมาะเป็นประกันตัวแรก", "2026-03-09")],
-  },
+  // ───────────── ประกันอุบัติเหตุ: real data, see ./data/accident.ts ─────────────
+  ...ACCIDENT_PRODUCTS,
 
   // ───────────── บ้าน/อัคคีภัย ─────────────
   {
