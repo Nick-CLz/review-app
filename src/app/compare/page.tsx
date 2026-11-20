@@ -5,12 +5,14 @@ import { actions, useDB } from "@/lib/store";
 import { baht, bestPrice, latestPrices, ratingStats, UNIT_BASE, unitPrice } from "@/lib/stats";
 import { ItemImage, Stars, StoreBadge } from "@/components/ui";
 import type { Item } from "@/lib/types";
+import { useT, type T } from "@/lib/i18n";
 
 type Cell = { node: React.ReactNode; score?: number };
 type Row = { label: React.ReactNode; cells: Cell[]; better?: "low" | "high" };
 
 export default function ComparePage() {
   const db = useDB();
+  const t = useT();
   const items = db.compare.map((id) => db.items.find((i) => i.id === id)).filter((i): i is Item => !!i);
   const others = db.items.filter((i) => !db.compare.includes(i.id));
   const units = new Set(items.map((i) => i.unit));
@@ -18,9 +20,9 @@ export default function ComparePage() {
 
   const rows: Row[] = [];
   if (items.length) {
-    rows.push({ label: "Brand", cells: items.map((i) => ({ node: i.brand })) });
-    rows.push({ label: "Category", cells: items.map((i) => ({ node: i.category })) });
-    rows.push({ label: "Size", cells: items.map((i) => ({ node: `${i.size} ${i.unit}`, score: sameUnit ? i.size : undefined })), better: "high" });
+    rows.push({ label: t("compare.brand"), cells: items.map((i) => ({ node: i.brand })) });
+    rows.push({ label: t("compare.category"), cells: items.map((i) => ({ node: i.category })) });
+    rows.push({ label: t("compare.size"), cells: items.map((i) => ({ node: `${i.size} ${i.unit}`, score: sameUnit ? i.size : undefined })), better: "high" });
 
     for (const s of db.stores) {
       if (!items.some((i) => latestPrices(db, i.id).some((p) => p.storeId === s.id))) continue;
@@ -35,7 +37,7 @@ export default function ComparePage() {
     }
 
     rows.push({
-      label: "Best price",
+      label: t("compare.best"),
       better: "low",
       cells: items.map((i) => {
         const b = bestPrice(db, i.id);
@@ -44,7 +46,7 @@ export default function ComparePage() {
     });
 
     rows.push({
-      label: sameUnit ? `Price per ${UNIT_BASE[[...units][0]].label}` : "Unit price",
+      label: sameUnit ? t("compare.pricePer", { unit: UNIT_BASE[[...units][0]].label }) : t("compare.unitPrice"),
       better: "low",
       cells: items.map((i) => {
         const b = bestPrice(db, i.id);
@@ -55,48 +57,48 @@ export default function ComparePage() {
     });
 
     rows.push({
-      label: "Rating",
+      label: t("compare.rating"),
       better: "high",
       cells: items.map((i) => {
         const r = ratingStats(db, i.id);
-        return r.count ? { node: <span className="inline-flex items-center gap-1"><Stars value={r.avg} /> {r.avg.toFixed(1)}</span>, score: r.avg } : { node: <span className="text-zinc-400">No reviews</span> };
+        return r.count ? { node: <span className="inline-flex items-center gap-1"><Stars value={r.avg} /> {r.avg.toFixed(1)}</span>, score: r.avg } : { node: <span className="text-zinc-400">{t("compare.noReviews")}</span> };
       }),
     });
-    rows.push({ label: "Reviews", cells: items.map((i) => ({ node: ratingStats(db, i.id).count })) });
+    rows.push({ label: t("compare.reviews"), cells: items.map((i) => ({ node: ratingStats(db, i.id).count })) });
 
     const attrKeys = [...new Set(items.flatMap((i) => Object.keys(i.attributes)))];
     for (const k of attrKeys) rows.push({ label: k, cells: items.map((i) => ({ node: i.attributes[k] ?? <span className="text-zinc-400">—</span> })) });
   }
 
-  const verdict = buildVerdict(db, items, sameUnit);
+  const verdict = buildVerdict(db, items, sameUnit, t);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="mr-auto text-2xl font-bold">Compare</h1>
+        <h1 className="mr-auto text-2xl font-bold">{t("compare.title")}</h1>
         {items.length < 4 && others.length > 0 && (
-          <select className="input w-auto" value="" onChange={(e) => e.target.value && actions.toggleCompare(e.target.value)} aria-label="Add item to compare">
-            <option value="">+ Add item to compare…</option>
+          <select className="input w-auto" value="" onChange={(e) => e.target.value && actions.toggleCompare(e.target.value)} aria-label={t("compare.addAria")}>
+            <option value="">{t("compare.addPh")}</option>
             {others.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.size} {i.unit})</option>)}
           </select>
         )}
-        {items.length > 0 && <button className="btn-ghost" onClick={() => actions.clearCompare()}>Clear all</button>}
+        {items.length > 0 && <button className="btn-ghost" onClick={() => actions.clearCompare()}>{t("compare.clearAll")}</button>}
       </div>
 
       {items.length === 0 ? (
         <div className="card p-10 text-center text-zinc-500">
-          Pick up to 4 items with <b>+ Compare</b> on the <Link href="/" className="text-indigo-600 underline">browse page</Link>, or use the menu above.
+          {t("compare.empty")} <Link href="/" className="text-indigo-600 underline">{t("nav.browse")} →</Link>
         </div>
       ) : (
         <>
           {verdict.length > 0 && (
             <div className="card space-y-1 border-indigo-200 bg-indigo-50 p-4 text-sm dark:border-indigo-900 dark:bg-indigo-950">
-              <div className="font-semibold text-indigo-900 dark:text-indigo-200">Quick verdict</div>
+              <div className="font-semibold text-indigo-900 dark:text-indigo-200">{t("compare.verdict")}</div>
               {verdict.map((v, i) => <div key={i}>{v}</div>)}
             </div>
           )}
           {!sameUnit && items.length > 1 && (
-            <p className="text-sm text-amber-600">These items use different units ({[...units].join(", ")}), so size and unit price aren&apos;t ranked against each other.</p>
+            <p className="text-sm text-amber-600">{t("compare.unitsWarn", { units: [...units].join(", ") })}</p>
           )}
           <div className="card overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
@@ -111,7 +113,7 @@ export default function ComparePage() {
                           <Link href={`/items/${i.id}`} className="font-semibold hover:text-indigo-600">{i.name}</Link>
                           {i.nameTh && <div className="text-xs text-zinc-500">{i.nameTh}</div>}
                         </div>
-                        <button onClick={() => actions.toggleCompare(i.id)} className="text-zinc-400 hover:text-red-600" aria-label={`Remove ${i.name}`}>✕</button>
+                        <button onClick={() => actions.toggleCompare(i.id)} className="text-zinc-400 hover:text-red-600" aria-label={t("compare.remove", { name: i.name })}>✕</button>
                       </div>
                     </th>
                   ))}
@@ -135,25 +137,25 @@ export default function ComparePage() {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-zinc-500">Green = best in row. Unit price uses each item&apos;s cheapest store.</p>
+          <p className="text-xs text-zinc-500">{t("compare.legend")}</p>
         </>
       )}
     </div>
   );
 }
 
-function buildVerdict(db: ReturnType<typeof useDB>, items: Item[], sameUnit: boolean): string[] {
+function buildVerdict(db: ReturnType<typeof useDB>, items: Item[], sameUnit: boolean, t: T): string[] {
   if (items.length < 2) return [];
   const out: string[] = [];
   const withBest = items.map((i) => ({ i, b: bestPrice(db, i.id), r: ratingStats(db, i.id) })).filter((x) => x.b);
   if (sameUnit && withBest.length > 1) {
     const v = [...withBest].sort((a, b) => unitPrice(a.i, a.b!.price) - unitPrice(b.i, b.b!.price))[0];
-    out.push(`💰 Best value: ${v.i.name} at ${baht(unitPrice(v.i, v.b!.price))} per ${UNIT_BASE[v.i.unit].label} (${db.stores.find((s) => s.id === v.b!.storeId)?.name}).`);
+    out.push(t("verdict.value", { name: v.i.name, price: baht(unitPrice(v.i, v.b!.price)), unit: UNIT_BASE[v.i.unit].label, store: db.stores.find((s) => s.id === v.b!.storeId)?.name ?? "" }));
   }
   const rated = items.map((i) => ({ i, r: ratingStats(db, i.id) })).filter((x) => x.r.count);
   if (rated.length > 1) {
-    const t = [...rated].sort((a, b) => b.r.avg - a.r.avg)[0];
-    out.push(`⭐ Best rated: ${t.i.name} (${t.r.avg.toFixed(1)} from ${t.r.count} review${t.r.count > 1 ? "s" : ""}).`);
+    const top = [...rated].sort((a, b) => b.r.avg - a.r.avg)[0];
+    out.push(t("verdict.rated", { name: top.i.name, avg: top.r.avg.toFixed(1), n: top.r.count }));
   }
   // Which store wins most head-to-heads across the compared items
   const wins = new Map<string, number>();
@@ -163,7 +165,7 @@ function buildVerdict(db: ReturnType<typeof useDB>, items: Item[], sameUnit: boo
   }
   if (wins.size) {
     const [sid, n] = [...wins.entries()].sort((a, b) => b[1] - a[1])[0];
-    out.push(`🏪 ${db.stores.find((s) => s.id === sid)?.name} is cheaper for ${n} of ${items.length} items.`);
+    out.push(t("verdict.store", { store: db.stores.find((s) => s.id === sid)?.name ?? "", n, total: items.length }));
   }
   return out;
 }
