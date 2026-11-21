@@ -1,4 +1,4 @@
-import { CARS, optionLabel } from "./categories";
+import { CATEGORIES, optionLabel } from "./categories";
 import type { SpecField, SpecValue } from "./types";
 
 const thb = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 0 });
@@ -31,12 +31,15 @@ export function formatSpec(f: SpecField, v: SpecValue | undefined): string {
       return f.unit ? `${s} ${f.unit}` : s;
     }
     default:
-      if (f.key === "bodyType" || f.key === "powertrain") return optionLabel(CARS, f.key, v);
-      return String(v);
+      {
+        // Values that are filter options (body type, powertrain…) get their icon + Thai label.
+        const cat = CATEGORIES.find((c) => c.filters.some((x) => x.key === f.key && x.options.some((o) => o.value === v)));
+        return cat ? optionLabel(cat, f.key, v) : String(v);
+      }
   }
 }
 
-/** Index of the best value in a row, or -1 when there is no clear winner. */
+/** Indexes of the best value(s) in a row; empty when there is no clear winner. */
 export function winnerIndex(f: SpecField, values: (SpecValue | undefined)[]): number[] {
   if (!f.better) return [];
   const nums = values.map((v) => (typeof v === "number" ? v : typeof v === "boolean" ? (v ? 1 : 0) : null));

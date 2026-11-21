@@ -12,9 +12,11 @@ export default function CompareButton({ id, variant = "chip" }: { id: string; va
     e.preventDefault();
     e.stopPropagation();
     const res = toggleCompare(id);
-    if (res === "full") {
-      setMsg(`เทียบได้สูงสุด ${MAX_COMPARE} คัน`);
-      setTimeout(() => setMsg(""), 2200);
+    const text =
+      res === "full" ? `เทียบได้สูงสุด ${MAX_COMPARE} รุ่น` : res === "replaced" ? "เริ่มรายการเทียบใหม่ (เทียบได้ทีละหมวด)" : "";
+    if (text) {
+      setMsg(text);
+      setTimeout(() => setMsg(""), 2600);
     }
   }
 

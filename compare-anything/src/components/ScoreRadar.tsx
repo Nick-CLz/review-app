@@ -1,4 +1,4 @@
-import { CAR_SCORE_DIMS, carScores, fullName } from "@/lib/items";
+import { categoryOf, fullName, scores } from "@/lib/items";
 import { SERIES } from "@/lib/palette";
 import type { Item } from "@/lib/types";
 
@@ -13,8 +13,9 @@ function point(axis: number, value: number, total: number) {
 
 /** Spider chart of the five spec scores, one translucent shape per item. */
 export default function ScoreRadar({ items }: { items: Item[] }) {
-  const n = CAR_SCORE_DIMS.length;
-  const ring = (v: number) => CAR_SCORE_DIMS.map((_, i) => point(i, v, n).join(",")).join(" ");
+  const dims = categoryOf(items[0]).scoreDims;
+  const n = dims.length;
+  const ring = (v: number) => dims.map((_, i) => point(i, v, n).join(",")).join(" ");
 
   return (
     <figure className="rounded-2xl border border-line bg-surface p-5">
@@ -24,7 +25,7 @@ export default function ScoreRadar({ items }: { items: Item[] }) {
           {[2, 4, 6, 8, 10].map((v) => (
             <polygon key={v} points={ring(v)} fill="none" stroke="var(--line)" strokeWidth={v === 10 ? 1.5 : 1} />
           ))}
-          {CAR_SCORE_DIMS.map((d, i) => {
+          {dims.map((d, i) => {
             const [x, y] = point(i, 10, n);
             const [lx, ly] = point(i, 12.6, n);
             return (
@@ -44,8 +45,8 @@ export default function ScoreRadar({ items }: { items: Item[] }) {
             );
           })}
           {items.map((item, idx) => {
-            const s = carScores(item);
-            const pts = CAR_SCORE_DIMS.map((d, i) => point(i, s[d.key], n).join(",")).join(" ");
+            const s = scores(item);
+            const pts = dims.map((d, i) => point(i, s[d.key], n).join(",")).join(" ");
             return (
               <polygon
                 key={item.id}
@@ -61,8 +62,8 @@ export default function ScoreRadar({ items }: { items: Item[] }) {
         </svg>
         <ul className="space-y-3 text-sm">
           {items.map((item, idx) => {
-            const s = carScores(item);
-            const best = CAR_SCORE_DIMS.reduce((a, b) => (s[b.key] > s[a.key] ? b : a));
+            const s = scores(item);
+            const best = dims.reduce((a, b) => (s[b.key] > s[a.key] ? b : a));
             return (
               <li key={item.id} className="flex items-start gap-2">
                 <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ background: SERIES[idx] }} />

@@ -11,8 +11,8 @@ const thai = Noto_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: { default: "เทียบหมด — รีวิวและเปรียบเทียบทุกอย่าง เริ่มที่รถยนต์", template: "%s · เทียบหมด" },
-  description: "รีวิวและเปรียบเทียบรถยนต์ทุกรูปแบบ อีโคคาร์ ซีดาน SUV PPV กระบะ MPV EV ไฮบริด ข้ามประเภทได้ทั้งหมด",
+  title: { default: "เทียบหมด — รีวิวและเปรียบเทียบทุกอย่าง เริ่มที่รถยนต์และมอเตอร์ไซค์", template: "%s · เทียบหมด" },
+  description: "รีวิวและเปรียบเทียบรถยนต์และมอเตอร์ไซค์ทุกรูปแบบ อีโคคาร์ SUV กระบะ EV ไฮบริด สกู๊ตเตอร์ บิ๊กไบค์ เทียบข้ามประเภทได้",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -28,6 +28,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <nav className="hidden gap-4 text-sm text-muted sm:flex">
               <Link href="/c/cars" className="hover:text-fg">
                 🚗 รถยนต์
+              </Link>
+              <Link href="/c/motorcycles" className="hover:text-fg">
+                🏍️ มอเตอร์ไซค์
               </Link>
               <Link href="/finder" className="hover:text-fg">
                 🧭 ช่วยเลือกรถ

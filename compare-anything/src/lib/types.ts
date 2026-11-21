@@ -26,17 +26,44 @@ export interface FilterDef {
   options: { value: string; label: string; icon?: string }[];
 }
 
+/** One spec-based score (1–10): the average of its normalized parts across the category. */
+export interface ScoreDim {
+  key: string;
+  label: string;
+  parts: { key: string; better: "higher" | "lower"; log?: boolean }[];
+}
+
+/** A "best in …" line in the compare summary — reads a spec or a score dimension. */
+export interface VerdictDef {
+  label: string;
+  key: string;
+  source: "spec" | "score";
+  better: "higher" | "lower";
+}
+
 export interface Category {
   slug: string;
   name: string;
   nameEn: string;
   icon: string;
   description: string;
+  /** What one item is called, e.g. "รถ", "มอเตอร์ไซค์". */
+  noun: string;
   /** Spec key that holds the headline price. */
   priceKey: string;
+  /** Filter key whose value picks the artwork and groups items in pickers. */
+  typeKey: string;
   fields: SpecField[];
   filters: FilterDef[];
-  comingSoon?: boolean;
+  scoreDims: ScoreDim[];
+  verdicts: VerdictDef[];
+  /** Three spec keys shown as quick stats on cards. */
+  cardStats: { key: string; label: string }[];
+  /** Rough yearly servicing cost by powertrain (บาท/ปี) — enables the running-cost calculator. */
+  maintenancePerYear?: Record<string, number>;
+  /** Budget slider lower bound. */
+  minBudget: number;
+  budgetStep: number;
 }
 
 export type SpecValue = number | string | boolean | null;

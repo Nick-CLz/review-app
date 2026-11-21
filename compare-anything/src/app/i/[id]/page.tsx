@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import CarArt from "@/components/CarArt";
 import CompareButton from "@/components/CompareButton";
 import CostCalculator from "@/components/CostCalculator";
+import ItemArt from "@/components/ItemArt";
 import PageSkeleton from "@/components/PageSkeleton";
 import RatingBadge from "@/components/RatingBadge";
 import Reviews from "@/components/Reviews";
@@ -39,13 +39,13 @@ async function ItemContent({ params }: { params: PageProps<"/i/[id]">["params"] 
   const s = item.specs;
   const groups = [...new Set(c.fields.map((f) => f.group))];
   const price = Number(s[c.priceKey]);
-  // Rivals: same body type first, then anything within ±25% of the price (cross-type).
+  // Rivals: same type first, then anything within ±25% of the price (cross-type).
   const rivals = itemsIn(c.slug)
     .filter((x) => x.id !== item.id)
     .map((x) => ({
       x,
-      same: x.specs.bodyType === s.bodyType,
-      near: Math.abs(Number(x.specs.price) - price) / price <= 0.25,
+      same: x.specs[c.typeKey] === s[c.typeKey],
+      near: Math.abs(Number(x.specs[c.priceKey]) - price) / price <= 0.25,
     }))
     .filter((r) => r.same || r.near)
     .sort((a, b) => Number(b.same) - Number(a.same) || Number(b.near) - Number(a.near))
@@ -70,7 +70,7 @@ async function ItemContent({ params }: { params: PageProps<"/i/[id]">["params"] 
           <header className="grid items-center gap-4 rounded-2xl border border-line bg-surface p-5 sm:grid-cols-[1fr_1.1fr]">
             <div>
               <p className="flex flex-wrap gap-1 text-xs">
-                <span className="rounded-full bg-surface-2 px-2 py-0.5">{optionLabel(c, "bodyType", s.bodyType)}</span>
+                <span className="rounded-full bg-surface-2 px-2 py-0.5">{optionLabel(c, c.typeKey, s[c.typeKey])}</span>
                 <span className="rounded-full bg-brand-soft px-2 py-0.5">{optionLabel(c, "powertrain", s.powertrain)}</span>
               </p>
               <h1 className="mt-2 text-2xl font-bold md:text-3xl">{fullName(item)}</h1>
@@ -81,7 +81,7 @@ async function ItemContent({ params }: { params: PageProps<"/i/[id]">["params"] 
               <p className="mt-3 text-sm">{item.tagline}</p>
             </div>
             <div className="rounded-xl bg-surface-2 p-3">
-              <CarArt bodyType={String(s.bodyType)} hue={item.hue} ev={s.powertrain === "ev"} className="w-full text-fg" />
+              <ItemArt item={item} />
             </div>
           </header>
 
@@ -134,7 +134,7 @@ async function ItemContent({ params }: { params: PageProps<"/i/[id]">["params"] 
             ))}
           </section>
 
-          <CostCalculator items={[item]} />
+          {c.maintenancePerYear && <CostCalculator items={[item]} />}
           <Reviews itemId={item.id} seed={item.reviews} />
         </div>
 
@@ -155,7 +155,7 @@ async function ItemContent({ params }: { params: PageProps<"/i/[id]">["params"] 
               <p className="text-2xl font-bold text-brand">{overallScore(item).toFixed(1)}</p>
             </div>
             <ScoreBars item={item} />
-            <p className="mt-3 text-[11px] text-muted">เทียบกับรถทุกคันในระบบ (1 = ต่ำสุด, 10 = สูงสุด)</p>
+            <p className="mt-3 text-[11px] text-muted">เทียบกับ{c.noun}ทุกรุ่นในระบบ (1 = ต่ำสุด, 10 = สูงสุด)</p>
           </div>
           {rivals.length > 0 && (
             <div className="rounded-2xl border border-line bg-surface p-5">
@@ -167,7 +167,7 @@ async function ItemContent({ params }: { params: PageProps<"/i/[id]">["params"] 
                       {fullName(a)}
                     </Link>
                     <span className="flex shrink-0 items-center gap-2">
-                      <span className="text-xs text-muted">{money(Number(a.specs.price))}</span>
+                      <span className="text-xs text-muted">{money(Number(a.specs[c.priceKey]))}</span>
                       <Link
                         href={`/compare?ids=${item.id},${a.id}`}
                         className="rounded-full border border-line px-2 py-0.5 text-[11px] hover:border-brand hover:text-brand"

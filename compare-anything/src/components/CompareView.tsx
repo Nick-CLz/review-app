@@ -2,34 +2,37 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BODY_TYPES, CARS } from "@/lib/categories";
+import { CATEGORIES, getCategory } from "@/lib/categories";
 import { formatSpec, money, winnerIndex } from "@/lib/format";
-import { CAR_SCORE_DIMS, carScores, fullName, getItem, itemsIn, overallScore } from "@/lib/items";
+import { categoryOf, fullName, getItem, itemsIn, overallScore, scores } from "@/lib/items";
 import { clearCompare, MAX_COMPARE, setCompare, toggleCompare, useCompare } from "@/lib/store";
-import type { Item } from "@/lib/types";
-import CarArt from "./CarArt";
+import type { Category, Item } from "@/lib/types";
 import CostCalculator from "./CostCalculator";
+import ItemArt from "./ItemArt";
 import RatingBadge from "./RatingBadge";
 import ScoreRadar from "./ScoreRadar";
 
-function AddPicker({ exclude, onPick }: { exclude: string[]; onPick: (id: string) => void }) {
-  const all = itemsIn("cars").filter((i) => !exclude.includes(i.id));
+function AddPicker({ category, exclude, onPick }: { category: Category; exclude: string[]; onPick: (id: string) => void }) {
+  const all = itemsIn(category.slug).filter((i) => !exclude.includes(i.id));
+  const types = category.filters.find((f) => f.key === category.typeKey)?.options ?? [];
   return (
     <select
       className="input"
       value=""
       onChange={(e) => e.target.value && onPick(e.target.value)}
-      aria-label="เพิ่มรถเพื่อเทียบ"
+      aria-label={`เพิ่ม${category.noun}เพื่อเทียบ`}
     >
-      <option value="">+ เพิ่มรถเข้าเทียบ…</option>
-      {BODY_TYPES.map((b) => {
-        const group = all.filter((i) => i.specs.bodyType === b.value);
+      <option value="">
+        + เพิ่ม{category.noun}เข้าเทียบ…
+      </option>
+      {types.map((b) => {
+        const group = all.filter((i) => i.specs[category.typeKey] === b.value);
         if (!group.length) return null;
         return (
           <optgroup key={b.value} label={`${b.icon} ${b.label}`}>
             {group.map((i) => (
               <option key={i.id} value={i.id}>
-                {fullName(i)} {i.variant} — {money(Number(i.specs.price))}
+                {fullName(i)} {i.variant} — {money(Number(i.specs[category.priceKey]))}
               </option>
             ))}
           </optgroup>
@@ -39,20 +42,19 @@ function AddPicker({ exclude, onPick }: { exclude: string[]; onPick: (id: string
   );
 }
 
-function verdicts(items: Item[]) {
-  // Every car sharing the best value wins — ties are named together, not resolved by list order.
-  const pick = (f: (i: Item) => number, dir: "max" | "min") => {
+function verdicts(category: Category, items: Item[]) {
+  // Every item sharing the best value wins — ties are named together, not resolved by list order.
+  const pick = (f: (i: Item) => number, dir: "higher" | "lower") => {
     const vals = items.map(f);
-    const best = dir === "max" ? Math.max(...vals) : Math.min(...vals);
+    const best = dir === "higher" ? Math.max(...vals) : Math.min(...vals);
     return items.filter((_, idx) => vals[idx] === best);
   };
   return [
-    { label: "🏆 คะแนนรวมดีสุด", winners: pick(overallScore, "max") },
-    { label: "💸 ราคาถูกสุด", winners: pick((i) => Number(i.specs.price), "min") },
-    { label: "⛽ ค่าพลังงานถูกสุด", winners: pick((i) => Number(i.specs.energyCost), "min") },
-    { label: "🚀 แรงสุด", winners: pick((i) => Number(i.specs.powerHp), "max") },
-    { label: "🧳 ใช้งานจริงดีสุด", winners: pick((i) => carScores(i).practical, "max") },
-    { label: "🛡️ ปลอดภัยสุด", winners: pick((i) => carScores(i).safety, "max") },
+    { label: "🏆 คะแนนรวมดีสุด", winners: pick(overallScore, "higher") },
+    ...category.verdicts.map((v) => ({
+      label: v.label,
+      winners: pick((i) => (v.source === "score" ? scores(i)[v.key] : Number(i.specs[v.key] ?? 0)), v.better),
+    })),
   ];
 }
 
@@ -65,7 +67,10 @@ export default function CompareView() {
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get("ids");
     if (p) {
-      setCompare(p.split(",").filter((id) => getItem(id)));
+      // Keep only items from the first item's category — specs differ between categories.
+      const valid = p.split(",").filter((id) => getItem(id));
+      const cat = valid.length ? getItem(valid[0])!.category : "";
+      setCompare(valid.filter((id) => getItem(id)!.category === cat));
       window.history.replaceState(null, "", "/compare");
     }
   }, []);
@@ -85,30 +90,40 @@ export default function CompareView() {
   }
 
   if (items.length < 2) {
+    const cats = items.length ? [categoryOf(items[0])] : CATEGORIES;
     return (
       <div className="mx-auto max-w-xl rounded-2xl border border-line bg-surface p-8 text-center">
         <p className="text-4xl">⚖️</p>
-        <h1 className="mt-2 text-xl font-bold">เลือกรถอย่างน้อย 2 คันเพื่อเปรียบเทียบ</h1>
-        <p className="mt-1 text-sm text-muted">เทียบข้ามประเภทได้ เช่น EV กับไฮบริด หรือกระบะกับ SUV</p>
+        <h1 className="mt-2 text-xl font-bold">เลือกอย่างน้อย 2 รุ่นเพื่อเปรียบเทียบ</h1>
+        <p className="mt-1 text-sm text-muted">เทียบข้ามประเภทได้ภายในหมวดเดียวกัน เช่น EV กับไฮบริด หรือกระบะกับ SUV</p>
         {items.length === 1 && <p className="mt-3 text-sm">เลือกแล้ว: {fullName(items[0])}</p>}
-        <div className="mt-4">
-          <AddPicker exclude={ids} onPick={(id) => toggleCompare(id)} />
+        <div className="mt-4 space-y-2">
+          {cats.map((c) => (
+            <AddPicker key={c.slug} category={c} exclude={ids} onPick={(id) => toggleCompare(id)} />
+          ))}
         </div>
-        <Link href="/c/cars" className="mt-4 inline-block text-sm text-brand hover:underline">
-          หรือเลือกจากหน้ารวมรถยนต์ →
-        </Link>
+        <p className="mt-4 flex flex-wrap justify-center gap-4 text-sm">
+          {cats.map((c) => (
+            <Link key={c.slug} href={`/c/${c.slug}`} className="text-brand hover:underline">
+              หรือเลือกจากหน้ารวม{c.name} →
+            </Link>
+          ))}
+        </p>
       </div>
     );
   }
 
-  const groups = [...new Set(CARS.fields.map((f) => f.group))];
-  const v = verdicts(items);
+  const category = getCategory(items[0].category) ?? CATEGORIES[0];
+  const groups = [...new Set(category.fields.map((f) => f.group))];
+  const v = verdicts(category, items);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">เปรียบเทียบ {items.length} รุ่น</h1>
+          <h1 className="text-2xl font-bold">
+            เปรียบเทียบ{category.name} {items.length} รุ่น
+          </h1>
           <p className="text-sm text-muted">ช่องสีเขียว = ดีที่สุดในแถวนั้น</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -148,7 +163,7 @@ export default function CompareView() {
           {/* Header */}
           <div className="grid border-b border-line" style={{ gridTemplateColumns: cols }}>
             <div className="p-3">
-              {items.length < MAX_COMPARE && <AddPicker exclude={ids} onPick={(id) => toggleCompare(id)} />}
+              {items.length < MAX_COMPARE && <AddPicker category={category} exclude={ids} onPick={(id) => toggleCompare(id)} />}
             </div>
             {items.map((i) => (
               <div key={i.id} className="relative border-l border-line p-3">
@@ -160,12 +175,12 @@ export default function CompareView() {
                 >
                   ×
                 </button>
-                <CarArt bodyType={String(i.specs.bodyType)} hue={i.hue} ev={i.specs.powertrain === "ev"} className="w-full text-fg" />
+                <ItemArt item={i} />
                 <Link href={`/i/${i.id}`} className="mt-1 block font-bold leading-tight hover:text-brand">
                   {fullName(i)}
                 </Link>
                 <p className="text-xs text-muted">{i.variant}</p>
-                <p className="mt-1 font-bold text-brand">{money(Number(i.specs.price))}</p>
+                <p className="mt-1 font-bold text-brand">{money(Number(i.specs[category.priceKey]))}</p>
                 <RatingBadge itemId={i.id} seed={i.reviews} />
               </div>
             ))}
@@ -173,8 +188,8 @@ export default function CompareView() {
 
           {/* Scores */}
           <div className="bg-surface-2 px-3 py-2 text-sm font-bold">คะแนนจากสเปก (1–10)</div>
-          {[{ key: "overall", label: "คะแนนรวม" }, ...CAR_SCORE_DIMS].map((d) => {
-            const vals = items.map((i) => (d.key === "overall" ? overallScore(i) : carScores(i)[d.key]));
+          {[{ key: "overall", label: "คะแนนรวม" }, ...category.scoreDims].map((d) => {
+            const vals = items.map((i) => (d.key === "overall" ? overallScore(i) : scores(i)[d.key]));
             const best = Math.max(...vals);
             return (
               <div key={d.key} className="grid border-t border-line text-sm" style={{ gridTemplateColumns: cols }}>
@@ -195,7 +210,7 @@ export default function CompareView() {
 
           {/* Specs */}
           {groups.map((g) => {
-            const fields = CARS.fields.filter((f) => {
+            const fields = category.fields.filter((f) => {
               if (f.group !== g) return false;
               if (!diffOnly) return true;
               const vals = items.map((i) => formatSpec(f, i.specs[f.key]));
@@ -259,7 +274,7 @@ export default function CompareView() {
       </div>
 
       <ScoreRadar items={items} />
-      <CostCalculator items={items} />
+      {category.maintenancePerYear && <CostCalculator items={items} />}
     </div>
   );
 }

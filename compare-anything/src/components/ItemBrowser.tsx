@@ -34,6 +34,7 @@ export default function ItemBrowser({
   );
   const [budget, setBudget] = useState(maxPrice);
   const [minSeats, setMinSeats] = useState(0);
+  const hasSeats = category.fields.some((f) => f.key === "seats");
   const [sort, setSort] = useState<SortKey>("score");
 
   const shown = useMemo(() => {
@@ -118,32 +119,34 @@ export default function ItemBrowser({
           <input
             id="budget"
             type="range"
-            min={500000}
+            min={category.minBudget}
             max={maxPrice}
-            step={50000}
+            step={category.budgetStep}
             value={budget}
             onChange={(e) => setBudget(Number(e.target.value))}
             className="w-full accent-[var(--brand)]"
           />
         </div>
-        <div>
-          <p className="mb-2 text-sm font-bold">ที่นั่งอย่างน้อย</p>
-          <div className="flex gap-1.5">
-            {[0, 5, 7].map((n) => (
-              <button
-                key={n}
-                type="button"
-                aria-pressed={minSeats === n}
-                onClick={() => setMinSeats(n)}
-                className={`rounded-full border px-3 py-1 text-xs ${
-                  minSeats === n ? "border-brand bg-brand text-brand-fg" : "border-line bg-surface hover:border-brand"
-                }`}
-              >
-                {n === 0 ? "ทั้งหมด" : `${n}+`}
-              </button>
-            ))}
+        {hasSeats && (
+          <div>
+            <p className="mb-2 text-sm font-bold">ที่นั่งอย่างน้อย</p>
+            <div className="flex gap-1.5">
+              {[0, 5, 7].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={minSeats === n}
+                  onClick={() => setMinSeats(n)}
+                  className={`rounded-full border px-3 py-1 text-xs ${
+                    minSeats === n ? "border-brand bg-brand text-brand-fg" : "border-line bg-surface hover:border-brand"
+                  }`}
+                >
+                  {n === 0 ? "ทั้งหมด" : `${n}+`}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
         {activeCount > 0 && (
           <button type="button" onClick={reset} className="text-sm text-brand hover:underline">
             ล้างตัวกรอง ({activeCount})

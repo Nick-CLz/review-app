@@ -1,4 +1,4 @@
-import { carScores, itemsIn } from "./items";
+import { itemsIn, scores } from "./items";
 import type { Item } from "./types";
 
 export type Use = "city" | "family" | "work" | "fun";
@@ -42,7 +42,7 @@ export function findCars(a: FinderAnswers): Match[] {
   );
 
   const scored = candidates.map((item) => {
-    const s = carScores(item);
+    const s = scores(item);
     const sp = item.specs;
     const totalW = Object.values(weights).reduce((x, y) => x + y, 0);
     let score = (Object.keys(weights) as Priority[]).reduce((sum, k) => sum + s[k] * weights[k], 0) / totalW;
@@ -57,7 +57,8 @@ export function findCars(a: FinderAnswers): Match[] {
         score += pt === "ev" ? 0.6 : 0.4;
         reasons.push("ชาร์จที่บ้านได้ ค่าพลังงานต่ำมาก");
       } else {
-        score -= pt === "ev" ? 2 : 1.2;
+        // Without home charging an EV loses its main advantage; heavier penalty for long daily distances.
+        score -= pt === "ev" ? (a.dailyKm >= 80 ? 3 : 2.5) : 1.2;
         warnings.push(pt === "ev" ? "ไม่มีที่ชาร์จบ้าน ต้องพึ่งสถานีชาร์จสาธารณะ" : "ไม่ชาร์จไฟจะเสียข้อดีของปลั๊กอินไฮบริด");
       }
     }

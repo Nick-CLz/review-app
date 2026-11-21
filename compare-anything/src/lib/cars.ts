@@ -1,3 +1,4 @@
+import { efficiencyText, energyCostPerKm, round2 } from "./energy";
 import type { Item, SeedReview } from "./types";
 
 /**
@@ -6,25 +7,6 @@ import type { Item, SeedReview } from "./types";
  */
 
 export type Powertrain = "gas" | "diesel" | "hev" | "phev" | "ev";
-
-export interface EnergyPrices {
-  gasoline: number; // บาท/ลิตร
-  diesel: number; // บาท/ลิตร
-  electricity: number; // บาท/kWh (ชาร์จบ้าน)
-  /** Share of PHEV kilometres driven on electricity (0–1). */
-  phevEvShare: number;
-}
-
-export const DEFAULT_ENERGY: EnergyPrices = { gasoline: 35, diesel: 32, electricity: 4.5, phevEvShare: 0.5 };
-
-/** Rough yearly servicing cost by powertrain (บาท/ปี). */
-export const MAINTENANCE_PER_YEAR: Record<Powertrain, number> = {
-  gas: 9000,
-  diesel: 11000,
-  hev: 8000,
-  phev: 7000,
-  ev: 3500,
-};
 
 interface RawCar {
   id: string;
@@ -794,27 +776,6 @@ const RAW: RawCar[] = [
   },
 ];
 
-// ── Derived values ────────────────────────────────────────
-
-export function energyCostPerKm(
-  c: { powertrain: Powertrain; kmPerL?: number; kmPerKwh?: number },
-  e: EnergyPrices = DEFAULT_ENERGY,
-): number {
-  const fuel = c.powertrain === "diesel" ? e.diesel : e.gasoline;
-  const perKmFuel = c.kmPerL ? fuel / c.kmPerL : 0;
-  const perKmElec = c.kmPerKwh ? e.electricity / c.kmPerKwh : 0;
-  if (c.powertrain === "ev") return perKmElec;
-  if (c.powertrain === "phev") return e.phevEvShare * perKmElec + (1 - e.phevEvShare) * perKmFuel;
-  return perKmFuel;
-}
-
-function efficiencyText(c: RawCar) {
-  const parts: string[] = [];
-  if (c.kmPerL) parts.push(`${c.kmPerL} กม./ลิตร`);
-  if (c.kmPerKwh) parts.push(`${c.kmPerKwh} กม./kWh`);
-  return parts.join(" · ");
-}
-
 export const CAR_ITEMS: Item[] = RAW.map((c) => ({
   id: c.id,
   category: "cars",
@@ -828,7 +789,7 @@ export const CAR_ITEMS: Item[] = RAW.map((c) => ({
   reviews: c.reviews,
   specs: {
     price: c.price,
-    energyCost: Math.round(energyCostPerKm(c) * 100) / 100,
+    energyCost: round2(energyCostPerKm(c)),
     warrantyYears: c.warrantyYears,
     powertrain: c.powertrain,
     powerHp: c.powerHp,

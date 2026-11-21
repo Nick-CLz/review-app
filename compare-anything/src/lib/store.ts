@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { getItem } from "./items";
 import type { UserReview } from "./types";
 
 /**
@@ -73,11 +74,20 @@ export function useCompare() {
   return useList<string>(COMPARE);
 }
 
-export function toggleCompare(id: string): "added" | "removed" | "full" {
+/**
+ * Add or remove an item. The list holds one category at a time (cars and
+ * motorcycles have different specs), so adding from another category starts a new list.
+ */
+export function toggleCompare(id: string): "added" | "removed" | "full" | "replaced" {
   const cur = read<string[]>(COMPARE, EMPTY);
   if (cur.includes(id)) {
     write(COMPARE, cur.filter((x) => x !== id));
     return "removed";
+  }
+  const cat = getItem(id)?.category;
+  if (cur.length && getItem(cur[0])?.category !== cat) {
+    write(COMPARE, [id]);
+    return "replaced";
   }
   if (cur.length >= MAX_COMPARE) return "full";
   write(COMPARE, [...cur, id]);

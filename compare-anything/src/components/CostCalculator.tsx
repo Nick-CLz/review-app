@@ -1,22 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { DEFAULT_ENERGY, energyCostPerKm, MAINTENANCE_PER_YEAR, type Powertrain } from "@/lib/cars";
+import { DEFAULT_ENERGY, energyCostPerKm, type EnergyPrices } from "@/lib/energy";
 import { money, moneyShort } from "@/lib/format";
-import { fullName } from "@/lib/items";
+import { categoryOf, fullName } from "@/lib/items";
 import { SERIES } from "@/lib/palette";
 import type { Item } from "@/lib/types";
 
-function costOf(item: Item, km: number, years: number, e: typeof DEFAULT_ENERGY) {
+function costOf(item: Item, km: number, years: number, e: EnergyPrices) {
   const s = item.specs;
-  const pt = s.powertrain as Powertrain;
-  const perKm = energyCostPerKm(
-    { powertrain: pt, kmPerL: (s.kmPerL as number) ?? undefined, kmPerKwh: (s.kmPerKwh as number) ?? undefined },
-    e,
-  );
-  const price = Number(s.price);
+  const cat = categoryOf(item);
+  const pt = String(s.powertrain);
+  const perKm = energyCostPerKm({ powertrain: pt, kmPerL: s.kmPerL as number | null, kmPerKwh: s.kmPerKwh as number | null }, e);
+  const price = Number(s[cat.priceKey]);
   const energy = perKm * km * years;
-  const maint = MAINTENANCE_PER_YEAR[pt] * years;
+  const maint = (cat.maintenancePerYear?.[pt] ?? 0) * years;
   return { price, energy, maint, total: price + energy + maint, perKm };
 }
 
@@ -129,13 +127,15 @@ function CostOverTime({ rows, years }: { rows: Row[]; years: number }) {
 }
 
 export default function CostCalculator({ items }: { items: Item[] }) {
-  const [km, setKm] = useState(20000);
+  // Motorcycles typically cover fewer kilometres a year than cars.
+  const [km, setKm] = useState(items[0]?.category === "motorcycles" ? 10000 : 20000);
   const [years, setYears] = useState(5);
   const [e, setE] = useState(DEFAULT_ENERGY);
   const rows = items.map((i) => ({ item: i, ...costOf(i, km, years, e) }));
   const max = Math.max(...rows.map((r) => r.total), 1);
   const cheapest = Math.min(...rows.map((r) => r.total));
   const showPhev = items.some((i) => i.specs.powertrain === "phev");
+  const showDiesel = items.some((i) => i.specs.powertrain === "diesel");
 
   return (
     <section className="rounded-2xl border border-line bg-surface p-5">
@@ -146,7 +146,7 @@ export default function CostCalculator({ items }: { items: Item[] }) {
         <Num label="วิ่งต่อปี" value={km} step={1000} onChange={setKm} suffix="กม." />
         <Num label="ใช้งาน" value={years} onChange={setYears} suffix="ปี" />
         <Num label="เบนซิน" value={e.gasoline} step={0.5} onChange={(n) => setE({ ...e, gasoline: n })} suffix="฿/ล." />
-        <Num label="ดีเซล" value={e.diesel} step={0.5} onChange={(n) => setE({ ...e, diesel: n })} suffix="฿/ล." />
+        {showDiesel && <Num label="ดีเซล" value={e.diesel} step={0.5} onChange={(n) => setE({ ...e, diesel: n })} suffix="฿/ล." />}
         <Num label="ค่าไฟ" value={e.electricity} step={0.1} onChange={(n) => setE({ ...e, electricity: n })} suffix="฿/kWh" />
         {showPhev && (
           <Num
