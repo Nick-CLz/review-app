@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef1f7;
+  --fg: #141824;
+  --muted: #5b6375;
+  --line: #e2e6ef;
+  --brand: #1d4ed8;
+  --brand-fg: #ffffff;
+  --brand-soft: #dbeafe;
+  --accent: #f59e0b;
+  --win: #dcfce7;
+  --win-fg: #166534;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0e14;
+    --surface: #141923;
+    --surface-2: #1c2230;
+    --fg: #e8ebf2;
+    --muted: #99a2b5;
+    --line: #262d3d;
+    --brand: #60a5fa;
+    --brand-fg: #0b1730;
+    --brand-soft: #172a4d;
+    --accent: #fbbf24;
+    --win: #11331f;
+    --win-fg: #86efac;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-win: var(--win);
+  --color-win-fg: var(--win-fg);
+  --font-sans: var(--font-thai), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+@utility input {
+  @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-brand text-brand-fg hover:opacity-90;
+}
+@utility btn-ghost {
+  @apply btn border border-line bg-surface hover:bg-surface-2;
+}
