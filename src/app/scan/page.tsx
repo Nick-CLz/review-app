@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import type { FoundProduct } from "@/components/ProductFinder";
 import { CompareToggle, ItemImage, ListButton, StoreBadge } from "@/components/ui";
+import { sameBarcode } from "@/lib/barcode";
 import { useT } from "@/lib/i18n";
 import { baht, latestPrices } from "@/lib/stats";
 import { useDB } from "@/lib/store";
@@ -17,21 +18,26 @@ export default function ScanPage() {
   const [code, setCode] = useState("");
   const [lookup, setLookup] = useState<Lookup | null>(null);
 
+  const request = useRef(0); // only the newest lookup may update the screen
+
   async function handle(next: string) {
+    const id = ++request.current;
     setCode(next);
-    if (db.items.some((i) => i.barcode === next)) return setLookup(null);
+    if (db.items.some((i) => sameBarcode(i.barcode, next))) return setLookup(null);
     setLookup({ status: "loading" });
+    let result: Lookup;
     try {
       const res = await fetch(`/api/lookup?barcode=${encodeURIComponent(next)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setLookup(data.product ? { status: "found", product: data.product } : { status: "missing" });
+      result = data.product ? { status: "found", product: data.product } : { status: "missing" };
     } catch {
-      setLookup({ status: "error" });
+      result = { status: "error" };
     }
+    if (request.current === id) setLookup(result);
   }
 
-  const existing = code ? db.items.find((i) => i.barcode === code) : undefined;
+  const existing = code ? db.items.find((i) => sameBarcode(i.barcode, code)) : undefined;
   const storeMap = new Map(db.stores.map((s) => [s.id, s]));
   const addHref = `/add?barcode=${encodeURIComponent(code)}`;
 
@@ -100,6 +106,7 @@ export default function ScanPage() {
             type="button"
             className="btn-ghost w-full"
             onClick={() => {
+              request.current++;
               setCode("");
               setLookup(null);
             }}

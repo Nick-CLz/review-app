@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { ItemImage, StoreBadge } from "@/components/ui";
 import { useT } from "@/lib/i18n";
 import { baht, basketPlan } from "@/lib/stats";
@@ -56,16 +57,7 @@ export default function ListPage() {
                 </div>
                 <div className="flex items-center rounded-lg ring-1 ring-zinc-300 dark:ring-zinc-700">
                   <button className="h-8 w-8 text-lg hover:bg-zinc-100 dark:hover:bg-zinc-800" onClick={() => actions.setListQty(item.id, qty - 1)} aria-label={`${t("list.less")}: ${item.name}`}>−</button>
-                  <input
-                    className="h-8 w-10 bg-transparent text-center text-sm tabular-nums outline-none"
-                    inputMode="numeric"
-                    value={qty}
-                    onChange={(e) => {
-                      const n = parseInt(e.target.value, 10);
-                      if (n > 0) actions.setListQty(item.id, n);
-                    }}
-                    aria-label={t("list.qty", { name: item.name })}
-                  />
+                  <QtyInput qty={qty} label={t("list.qty", { name: item.name })} onChange={(n) => actions.setListQty(item.id, n)} />
                   <button className="h-8 w-8 text-lg hover:bg-zinc-100 dark:hover:bg-zinc-800" onClick={() => actions.setListQty(item.id, qty + 1)} aria-label={`${t("list.more")}: ${item.name}`}>+</button>
                 </div>
                 <button className="text-zinc-400 hover:text-red-600" onClick={() => actions.setListQty(item.id, 0)} aria-label={t("list.remove", { name: item.name })}>✕</button>
@@ -133,5 +125,27 @@ export default function ListPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Keeps what is being typed until the box loses focus, so it can be emptied and retyped. */
+function QtyInput({ qty, label, onChange }: { qty: number; label: string; onChange: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      className="h-8 w-10 bg-transparent text-center text-sm tabular-nums outline-none"
+      inputMode="numeric"
+      value={draft ?? qty}
+      aria-label={label}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => {
+        const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+        setDraft(v);
+        const n = parseInt(v, 10);
+        if (n > 0) onChange(n);
+      }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+    />
   );
 }

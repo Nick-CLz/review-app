@@ -73,7 +73,7 @@ function start() {
   try {
     const cached = safeGet(CACHE_KEY);
     if (cached) shared = JSON.parse(cached) as Shared;
-    compare = JSON.parse(safeGet(COMPARE_KEY) ?? "[]") as string[];
+    compare = parseIds(safeGet(COMPARE_KEY));
     list = parseList(safeGet(LIST_KEY));
   } catch { /* ignore bad cache */ }
   emit();
@@ -82,7 +82,7 @@ function start() {
   window.addEventListener("focus", () => refresh());
   window.addEventListener("storage", (e) => {
     if (e.key === COMPARE_KEY) {
-      compare = JSON.parse(e.newValue ?? "[]");
+      compare = parseIds(e.newValue);
       emit();
     }
     if (e.key === LIST_KEY) {
@@ -134,6 +134,15 @@ async function mutate(local: (s: Shared) => Shared, remote: () => Promise<Action
     alert(lastError);
   }
   if (pending === 0) await refresh();
+}
+
+function parseIds(raw: string | null): string[] {
+  try {
+    const v = JSON.parse(raw ?? "[]") as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(-4) : [];
+  } catch {
+    return [];
+  }
 }
 
 function parseList(raw: string | null): ListEntry[] {

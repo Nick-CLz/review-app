@@ -228,7 +228,7 @@ function AddPrice({ itemId }: { itemId: string }) {
         </select>
         <input className="input" type="number" step="0.25" min="0" placeholder={t("price.ph")} value={price} onChange={(e) => setPrice(e.target.value)} aria-label={t("item.price")} required />
         <input className="input" placeholder={t("price.promo")} value={promo} onChange={(e) => setPromo(e.target.value)} aria-label={t("price.promo")} />
-        <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t("price.date")} />
+        <input className="input" type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value)} aria-label={t("price.date")} />
       </div>
       <button className="btn-primary w-full">{t("price.save")}</button>
     </form>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { actions, useDB } from "@/lib/store";
@@ -7,6 +8,7 @@ import type { Unit } from "@/lib/types";
 import { ProductFinder, type FoundProduct } from "@/components/ProductFinder";
 import { ItemImage } from "@/components/ui";
 import { SignInGate } from "@/components/auth";
+import { cleanBarcode, sameBarcode } from "@/lib/barcode";
 import { useT } from "@/lib/i18n";
 
 const EMOJIS = ["📦", "🥤", "💧", "☕", "🍵", "🥛", "🍜", "🥔", "🍫", "🍪", "🍞", "🥚", "🍗", "🍎", "🧴", "🪥", "🧻", "🧼", "💊", "🔋", "📱", "🎧", "👟"];
@@ -29,7 +31,7 @@ export default function AddPage() {
   const db = useDB();
   const router = useRouter();
   const t = useT();
-  const scanned = useSearchParams().get("barcode")?.replace(/\D/g, "").slice(0, 14) ?? "";
+  const scanned = cleanBarcode(useSearchParams().get("barcode") ?? "");
   const categories = [...new Set(db.items.map((i) => i.category))].sort();
 
   const [f, setF] = useState<Form>({ name: "", nameTh: "", brand: "", category: "", size: "", unit: "ml", barcode: scanned, emoji: "📦", imageUrl: "" });
@@ -55,6 +57,8 @@ export default function AddPage() {
       live = false;
     };
   }, [scanned]);
+
+  const duplicate = db.items.find((i) => sameBarcode(i.barcode, f.barcode));
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
 
@@ -85,6 +89,13 @@ export default function AddPage() {
       {scanStatus && (
         <p className={`rounded-lg p-3 text-sm ${scanStatus === "found" ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}`} aria-live="polite">
           {t(scanStatus === "loading" ? "add.scanLooking" : scanStatus === "found" ? "add.scanFound" : "add.scanMissing", { code: scanned })}
+        </p>
+      )}
+
+      {duplicate && (
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200" role="status">
+          {t("add.dup", { name: duplicate.name })}{" "}
+          <Link href={`/items/${duplicate.id}`} className="font-semibold underline">{t("scan.view")} →</Link>
         </p>
       )}
 

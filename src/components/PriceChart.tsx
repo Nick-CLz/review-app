@@ -125,6 +125,8 @@ export function PriceChart({ itemName, prices, stores }: { itemName: string; pri
     .map((s, i) => ({ i, y: y(s.points[s.points.length - 1].price) }))
     .sort((a, b) => a.y - b.y);
   for (let k = 1; k < labels.length; k++) if (labels[k].y - labels[k - 1].y < 16) labels[k].y = labels[k - 1].y + 16;
+  // ...and if that pushed the stack past the bottom of the plot, slide it back up
+  for (let k = labels.length - 1, max = y1; k >= 0; k--, max -= 16) labels[k].y = Math.min(labels[k].y, max);
   const labelY = new Map(labels.map((l) => [l.i, l.y]));
 
   // Date labels: keep as many as fit without colliding, always the first and last
@@ -193,11 +195,13 @@ export function PriceChart({ itemName, prices, stores }: { itemName: string; pri
           {series.map((s, i) => {
             const ly = labelY.get(i)!;
             const v = s.points[s.points.length - 1].price;
+            const room = Math.max(4, 14 - baht(v).length); // characters left beside the price
+            const name = s.store.name.length > room ? `${s.store.name.slice(0, room - 1)}…` : s.store.name;
             return (
               <g key={s.store.id}>
                 <line x1={x1 + 6} x2={x1 + 16} y1={ly} y2={ly} stroke={s.store.color} strokeWidth={2} strokeLinecap="round" />
                 <text x={x1 + 20} y={ly} dy="0.32em" className="fill-zinc-700 text-[11px] dark:fill-zinc-300">
-                  <tspan className="font-semibold tabular-nums">{baht(v)}</tspan> {s.store.name}
+                  <tspan className="font-semibold tabular-nums">{baht(v)}</tspan> {name}
                 </text>
               </g>
             );

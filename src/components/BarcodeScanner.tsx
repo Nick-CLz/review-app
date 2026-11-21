@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { IScannerControls } from "@zxing/browser";
+import { checkDigitOk } from "@/lib/barcode";
 import { useT } from "@/lib/i18n";
 
 async function makeReader() {
@@ -21,31 +22,42 @@ export function BarcodeScanner({ onCode }: { onCode: (code: string) => void }) {
   const t = useT();
   const video = useRef<HTMLVideoElement>(null);
   const controls = useRef<IScannerControls | null>(null);
+  // Bumped whenever the camera is stopped, so a start that is still in flight knows to give up
+  const run = useRef(0);
   const [state, setState] = useState<"idle" | "starting" | "scanning">("idle");
   const [err, setErr] = useState("");
   const [typed, setTyped] = useState("");
 
   const stop = () => {
+    run.current++;
     controls.current?.stop();
     controls.current = null;
     setState("idle");
   };
 
-  useEffect(() => () => controls.current?.stop(), []);
+  useEffect(
+    () => () => {
+      run.current++;
+      controls.current?.stop();
+    },
+    [],
+  );
 
   async function start() {
     setErr("");
     setState("starting");
+    const id = ++run.current;
     try {
       const reader = await makeReader();
       let done = false;
-      controls.current = await reader.decodeFromConstraints(
+      const ctl = await reader.decodeFromConstraints(
         { video: { facingMode: { ideal: "environment" } }, audio: false },
         video.current!,
         (result, _error, ctl) => {
           const text = result?.getText();
           if (done || !text || !VALID.test(text)) return;
           done = true;
+          run.current++;
           ctl.stop();
           controls.current = null;
           setState("idle");
@@ -53,8 +65,12 @@ export function BarcodeScanner({ onCode }: { onCode: (code: string) => void }) {
           onCode(text);
         },
       );
+      // Stopped, left the page, or already read a code while the camera was still starting
+      if (run.current !== id) return ctl.stop();
+      controls.current = ctl;
       setState("scanning");
     } catch (e) {
+      if (run.current !== id) return;
       controls.current = null;
       setState("idle");
       const name = (e as Error).name;
@@ -118,6 +134,7 @@ export function BarcodeScanner({ onCode }: { onCode: (code: string) => void }) {
           e.preventDefault();
           const code = typed.replace(/\D/g, "");
           if (!VALID.test(code)) return setErr(t("scan.invalid"));
+          if (!checkDigitOk(code)) return setErr(t("scan.badCheck"));
           setErr("");
           onCode(code);
         }}
