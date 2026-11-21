@@ -1,16 +1,40 @@
 import Link from "next/link";
 import type { Category, Product } from "@/lib/types";
 import { formatSpec } from "@/lib/format";
+import type { Pick } from "@/lib/recommend";
 import { BuyAction, DataBadge, Price } from "./ProductBits";
 import CompareButton from "./CompareButton";
 import RatingBadge from "./RatingBadge";
 
-export default function ProductCard({ product: p, category: c }: { product: Product; category: Category }) {
+export default function ProductCard({
+  product: p,
+  category: c,
+  pick,
+  rank,
+}: {
+  product: Product;
+  category: Category;
+  /** Present when the user has picked priorities. */
+  pick?: Pick;
+  /** 1–3 for the top matches. */
+  rank?: number;
+}) {
   // Show the 3 most important non-price specs on the card.
   const keySpecs = c.fields.filter((f) => f.key !== c.priceKey).slice(0, 3);
 
   return (
-    <article className="flex flex-col rounded-2xl border border-line bg-surface p-5 transition hover:shadow-lg">
+    <article
+      className={`flex flex-col rounded-2xl border bg-surface p-5 transition hover:shadow-lg ${rank === 1 ? "border-brand ring-1 ring-brand" : "border-line"}`}
+    >
+      {pick && (
+        <div className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-xs">
+          <p className="font-semibold">
+            {rank ? `🎯 ตรงใจอันดับ ${rank}` : "ความตรงใจ"} · {pick.score}/100
+          </p>
+          {pick.reasons.length > 0 && <p className="mt-0.5 text-muted">เด่นที่ {pick.reasons.join(" · ")}</p>}
+          {pick.missing.length > 0 && <p className="mt-0.5 text-muted">ไม่ระบุ{pick.missing.join(", ")} จึงไม่ได้คะแนนข้อนี้</p>}
+        </div>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs text-muted">{p.provider}</p>
