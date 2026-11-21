@@ -100,7 +100,7 @@ export const CATEGORIES: Category[] = [
       { key: "deathBenefit", label: "เสียชีวิต/ทุพพลภาพถาวร", type: "money", better: "higher" },
       { key: "medicalPerAccident", label: "ค่ารักษาต่ออุบัติเหตุ", type: "money", better: "higher" },
       { key: "dailyComp", label: "ชดเชยรายได้ (นอน รพ.)", type: "money", better: "higher", suffix: "/วัน" },
-      { key: "motorcycle", label: "คุ้มครองขับขี่ จยย.", type: "bool", better: "higher" },
+      { key: "motorcycleDeath", label: "เสียชีวิตจากขับขี่/ซ้อนท้าย จยย.", type: "money", better: "higher", hint: "หลายแผนจ่ายน้อยกว่าอุบัติเหตุทั่วไป" },
       { key: "maxEntryAge", label: "อายุรับประกันสูงสุด", type: "number", better: "higher", suffix: " ปี" },
     ],
   },

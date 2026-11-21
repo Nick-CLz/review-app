@@ -71,10 +71,15 @@ export default function CompareView() {
   const c = getCategory(items[0].category)!;
   const win = winners(c.fields, items);
   const winCount = (id: string) => Object.values(win).filter((s) => s.has(id)).length;
-  const differs = (key: string) => new Set(items.map((p) => formatSpec(c.fields.find((f) => f.key === key)!, p.specs[key]))).size > 1;
-  const rows = onlyDiff ? c.fields.filter((f) => differs(f.key)) : c.fields;
-  const top = items.length > 1 ? [...items].sort((a, b) => winCount(b.id) - winCount(a.id))[0] : undefined;
+  const shownValue = (f: (typeof c.fields)[number], p: Product) => formatSpec(f, p.specs[f.key]);
+  const rows = onlyDiff ? c.fields.filter((f) => new Set(items.map((p) => shownValue(f, p))).size > 1) : c.fields;
 
+  // Only name a leader when one plan is clearly ahead; a tie isn't a win.
+  const best = Math.max(0, ...items.map((p) => winCount(p.id)));
+  const leaders = items.filter((p) => winCount(p.id) === best);
+  const top = best > 0 && leaders.length === 1 ? leaders[0] : undefined;
+  // Fields the verdict couldn't fully judge because some plan doesn't state a figure.
+  const unknown = c.fields.filter((f) => f.better && items.some((p) => p.specs[f.key] === null || p.specs[f.key] === undefined));
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -118,10 +123,23 @@ export default function CompareView() {
         </label>
       )}
 
-      {top && winCount(top.id) > 0 && (
-        <p className="mt-4 rounded-xl bg-win px-4 py-3 text-sm text-win-fg">
-          🏆 <b>{top.name}</b> ดีที่สุดใน {winCount(top.id)} จาก {Object.keys(win).length} หัวข้อที่วัดได้ — แต่แผนที่ “ใช่” ขึ้นกับความต้องการของคุณ
-        </p>
+      {items.length > 1 && (top || best > 0) && (
+        <div className="mt-4 rounded-xl bg-win px-4 py-3 text-sm text-win-fg">
+          {top ? (
+            <p>
+              🏆 <b>{top.name}</b> ดีที่สุดใน {best} จาก {Object.keys(win).length} หัวข้อที่วัดได้ — แต่แผนที่ “ใช่” ขึ้นกับความต้องการของคุณ
+            </p>
+          ) : (
+            <p>
+              ⚖︎ สูสี: {leaders.map((p) => p.name).join(" และ ")} ดีที่สุดเท่ากันที่ {best} หัวข้อ
+            </p>
+          )}
+          {unknown.length > 0 && (
+            <p className="mt-1 text-xs opacity-80">
+              ยังเทียบไม่ครบ: บางแผนไม่ระบุ{unknown.map((f) => f.label).join(", ")} จึงไม่ได้นับหัวข้อนั้นให้แผนดังกล่าว
+            </p>
+          )}
+        </div>
       )}
 
       <div className="mt-5 overflow-x-auto rounded-2xl border border-line bg-surface">
@@ -209,6 +227,32 @@ export default function CompareView() {
                 </td>
               ))}
             </tr>
+            {items.some((p) => p.dataNote) && (
+              <tr className="border-b border-line align-top">
+                <th className="sticky left-0 bg-surface px-4 py-3 text-left font-normal text-muted">เงื่อนไขของตัวเลข</th>
+                {items.map((p) => (
+                  <td key={p.id} className="px-4 py-3 text-xs text-muted">
+                    {p.dataNote ?? "—"}
+                  </td>
+                ))}
+              </tr>
+            )}
+            {items.some((p) => p.source) && (
+              <tr className="border-b border-line align-top">
+                <th className="sticky left-0 bg-surface px-4 py-3 text-left font-normal text-muted">แหล่งข้อมูล</th>
+                {items.map((p) => (
+                  <td key={p.id} className="px-4 py-3 text-xs">
+                    {p.source ? (
+                      <a href={p.source.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-brand">
+                        {p.source.label} ↗
+                      </a>
+                    ) : (
+                      <span className="text-muted">ข้อมูลตัวอย่าง</span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            )}
             <tr>
               <th className="sticky left-0 bg-surface p-4" />
               {items.map((p) => (
