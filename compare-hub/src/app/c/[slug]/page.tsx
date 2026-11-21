@@ -5,6 +5,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { notFound } from "next/navigation";
 import { LIVE_CATEGORIES, getCategory } from "@/lib/categories";
 import { productsIn } from "@/lib/products";
+import TripPrices from "@/components/TripPrices";
 import ProductBrowser from "@/components/ProductBrowser";
 
 export function generateStaticParams() {
@@ -44,6 +45,7 @@ async function CategoryContent({ params }: { params: PageProps<"/c/[slug]">["par
           <p className="mt-1 max-w-2xl text-muted">{category.description}</p>
         </div>
       </div>
+      {slug === "travel" && <TripPrices />}
       <ProductBrowser category={category} products={productsIn(slug)} />
     </div>
   );

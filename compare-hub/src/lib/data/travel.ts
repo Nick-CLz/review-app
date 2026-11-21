@@ -179,3 +179,38 @@ export const TRAVEL_PRODUCTS: Product[] = [
     dataNote: "ตัวเลขเป็นวงเงิน “สูงสุด” ของผลิตภัณฑ์ ไม่ใช่ของแผนใดแผนหนึ่ง",
   },
 ];
+
+/**
+ * REAL sample premiums from Viriyah's own online calculator (same URL as VIRIYAH.url),
+ * single trip from Thailand, 1 traveller, departing 1 Dec 2026, before any promo code.
+ * Read on 2026-11-21. Only the destinations and trip lengths below were looked up:
+ * do NOT interpolate other lengths. The calculator returned identical prices for
+ * "Schengen" and "Worldwide".
+ */
+export const TRIP_PRICES_CHECKED = "2026-11-21";
+export const TRIP_DAYS = [4, 7, 10, 14, 30] as const;
+export const TRIP_DESTINATIONS = [
+  { key: "japan", label: "ญี่ปุ่น" },
+  { key: "schengen", label: "ยุโรป (เชงเก้น)" },
+  { key: "worldwide", label: "ทั่วโลก" },
+] as const;
+
+type Dest = (typeof TRIP_DESTINATIONS)[number]["key"];
+const far = {
+  "travel-viriyah-v-saver": [254, 308, 364, 468, 784],
+  "travel-viriyah-v-smart": [476, 547, 675, 829, 1346],
+  "travel-viriyah-v-shield": [721, 822, 966, 1153, 1572],
+  "travel-viriyah-v-sure": [1360, 1510, 1883, 2349, 3555],
+};
+
+/** productId → premiums in baht, in the same order as TRIP_DAYS. */
+export const TRIP_PRICES: Record<Dest, Record<string, number[]>> = {
+  japan: {
+    "travel-viriyah-v-saver": [166, 230, 278, 369, 654],
+    "travel-viriyah-v-smart": [343, 453, 559, 699, 1132],
+    "travel-viriyah-v-shield": [544, 695, 833, 1040, 1505],
+    "travel-viriyah-v-sure": [900, 1212, 1479, 1854, 2839],
+  },
+  schengen: far,
+  worldwide: far,
+};
