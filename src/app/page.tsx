@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useDB } from "@/lib/store";
+import { useDB, useSyncStatus } from "@/lib/store";
 import { baht, bestPrice, latestPrices, ratingStats, savings, UNIT_BASE, unitPrice } from "@/lib/stats";
-import { CompareToggle, Stars, StoreBadge } from "@/components/ui";
+import { CompareToggle, ItemImage, ListButton, Stars, StoreBadge } from "@/components/ui";
+import { useT } from "@/lib/i18n";
 
 type Sort = "rating" | "price" | "unit" | "savings" | "name";
 
 export default function BrowsePage() {
   const db = useDB();
+  const status = useSyncStatus();
+  const t = useT();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("All");
   const [store, setStore] = useState("all");
@@ -42,38 +45,36 @@ export default function BrowsePage() {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 p-6 text-white shadow">
-        <h1 className="text-2xl font-bold sm:text-3xl">Review & compare anything</h1>
-        <p className="mt-1 max-w-2xl text-indigo-100">
-          Starting with everyday SKUs at <b>Big C</b> and <b>7-Eleven</b>. See who&apos;s cheaper, compare price per unit, and read what people think.
-        </p>
+        <h1 className="text-2xl font-bold sm:text-3xl">{t("browse.title")}</h1>
+        <p className="mt-1 max-w-2xl text-indigo-100">{t("browse.lead")}</p>
         <div className="mt-4 flex flex-wrap gap-4 text-sm">
-          <Stat n={db.items.length} label="items" />
-          <Stat n={db.prices.length} label="price points" />
-          <Stat n={db.reviews.length} label="reviews" />
-          <Stat n={db.stores.length} label="stores" />
+          <Stat n={db.items.length} label={t("stat.items")} />
+          <Stat n={db.prices.length} label={t("stat.prices")} />
+          <Stat n={db.reviews.length} label={t("stat.reviews")} />
+          <Stat n={db.stores.length} label={t("stat.stores")} />
         </div>
       </section>
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-[220px] flex-1">
-          <label className="label" htmlFor="q">Search</label>
-          <input id="q" className="input" placeholder="Name, Thai name, brand, barcode…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <label className="label" htmlFor="q">{t("browse.search")}</label>
+          <input id="q" className="input" placeholder={t("browse.searchPh")} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <div>
-          <label className="label" htmlFor="store">Sold at</label>
+          <label className="label" htmlFor="store">{t("browse.soldAt")}</label>
           <select id="store" className="input" value={store} onChange={(e) => setStore(e.target.value)}>
-            <option value="all">Any store</option>
+            <option value="all">{t("browse.anyStore")}</option>
             {db.stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="label" htmlFor="sort">Sort by</label>
+          <label className="label" htmlFor="sort">{t("browse.sortBy")}</label>
           <select id="sort" className="input" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-            <option value="rating">Top rated</option>
-            <option value="price">Lowest price</option>
-            <option value="unit">Lowest unit price</option>
-            <option value="savings">Biggest store gap</option>
-            <option value="name">Name A–Z</option>
+            <option value="rating">{t("sort.rating")}</option>
+            <option value="price">{t("sort.price")}</option>
+            <option value="unit">{t("sort.unit")}</option>
+            <option value="savings">{t("sort.savings")}</option>
+            <option value="name">{t("sort.name")}</option>
           </select>
         </div>
       </div>
@@ -85,21 +86,25 @@ export default function BrowsePage() {
             onClick={() => setCat(c)}
             className={`rounded-full px-3 py-1 text-sm font-medium transition ${c === cat ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-white text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-zinc-800"}`}
           >
-            {c}
+            {c === "All" ? t("cat.all") : c}
           </button>
         ))}
       </div>
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && !db.items.length && status === "loading" ? (
+        <div className="card p-10 text-center text-zinc-500">{t("browse.loading")}</div>
+      ) : rows.length === 0 && !db.items.length && status === "error" ? (
+        <div className="card p-10 text-center text-red-600">{t("browse.offline")}</div>
+      ) : rows.length === 0 ? (
         <div className="card p-10 text-center text-zinc-500">
-          Nothing matches. <Link href="/add" className="text-indigo-600 underline">Add it?</Link>
+          {t("browse.empty")} <Link href="/add" className="text-indigo-600 underline">{t("browse.addIt")}</Link>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map(({ item, best, prices, rating, save }) => (
             <Link key={item.id} href={`/items/${item.id}`} className="card group flex flex-col p-4 transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-zinc-100 text-2xl dark:bg-zinc-800">{item.emoji || "📦"}</div>
+                <ItemImage item={item} />
                 <div className="min-w-0 flex-1">
                   <div className="text-xs text-zinc-500">{item.brand} · {item.category}</div>
                   <h2 className="font-semibold leading-snug group-hover:text-indigo-600">{item.name}</h2>
@@ -108,7 +113,7 @@ export default function BrowsePage() {
               </div>
               <div className="mt-3 flex items-center gap-2 text-sm">
                 <Stars value={rating.avg} />
-                <span className="text-zinc-500">{rating.count ? `${rating.avg.toFixed(1)} (${rating.count})` : "No reviews yet"}</span>
+                <span className="text-zinc-500">{rating.count ? `${rating.avg.toFixed(1)} (${rating.count})` : t("browse.noReviews")}</span>
               </div>
               <div className="mt-3 space-y-1">
                 {prices.map((p) => (
@@ -120,20 +125,26 @@ export default function BrowsePage() {
                     </span>
                   </div>
                 ))}
-                {!prices.length && <div className="text-sm text-zinc-500">No prices yet</div>}
+                {!prices.length && <div className="text-sm text-zinc-500">{t("browse.noPrices")}</div>}
               </div>
               <div className="mt-auto flex items-center justify-between pt-4">
                 <span className="text-xs text-zinc-500">
                   {item.size} {item.unit}
-                  {save && <> · save <b className="text-emerald-600">{baht(save.amount)}</b> at {storeMap.get(save.cheapest)?.name}</>}
+                  {save && <> · {t("browse.saveAt", { amount: baht(save.amount), store: storeMap.get(save.cheapest)?.name ?? "" })}</>}
                 </span>
-                <CompareToggle itemId={item.id} compact />
+                <span className="flex gap-1">
+                  <ListButton itemId={item.id} compact />
+                  <CompareToggle itemId={item.id} compact />
+                </span>
               </div>
             </Link>
           ))}
         </div>
       )}
-      <p className="text-center text-xs text-zinc-500">Sample prices are illustrative — update them with what you see on the shelf.</p>
+      <p className="text-center text-xs text-zinc-500">{t("browse.footer")}
+        <br />
+        {t("browse.credit")} <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer" className="underline">Open Food Facts</a> (ODbL / CC BY-SA).
+      </p>
     </div>
   );
 }

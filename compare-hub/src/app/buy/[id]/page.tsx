@@ -9,7 +9,7 @@ import { formatSpec, money } from "@/lib/format";
 import BuyForm from "@/components/BuyForm";
 
 export function generateStaticParams() {
-  return PRODUCTS.map((p) => ({ id: p.id }));
+  return PRODUCTS.filter((p) => !p.source).map((p) => ({ id: p.id }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/buy/[id]">): Promise<Metadata> {
@@ -29,7 +29,8 @@ async function BuyContent({ params }: { params: PageProps<"/buy/[id]">["params"]
   const { id } = await params;
   const p = getProduct(id);
   const c = p && getCategory(p.category);
-  if (!p || !c) notFound();
+  // Real products are sold on the insurer's own site, not through our demo lead form.
+  if (!p || !c || p.source) notFound();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">

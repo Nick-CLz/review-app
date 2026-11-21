@@ -1,7 +1,9 @@
 import type { Product, SeedReview } from "./types";
+import { TRAVEL_PRODUCTS } from "./data/travel";
+import { ACCIDENT_PRODUCTS } from "./data/accident";
 
 /**
- * SAMPLE DATA — provider names, plans and prices are fictional and exist only to
+ * SAMPLE DATA (all categories except travel) — provider names, plans and prices are fictional and exist only to
  * demonstrate the comparison UI. Replace with real, licensed product data
  * (e.g. from insurers' published brochures / OIC filings) before going live.
  */
@@ -173,82 +175,11 @@ export const PRODUCTS: Product[] = [
     reviews: [r("มิ้นท์", 3, "ทุนน้อย", "ราคาดีแต่ทุน 1 แสน ไม่พอถ้าชนหนัก", "2026-01-30")],
   },
 
-  // ───────────── ประกันการเดินทาง ─────────────
-  {
-    id: "travel-andaman-asia",
-    category: "travel",
-    name: "อันดามัน ทราเวล เอเชีย",
-    provider: "อันดามันประกันภัย",
-    tagline: "เที่ยวเอเชียสบายใจ เริ่มต้นไม่ถึง 400",
-    badge: "เบี้ยถูกสุด",
-    highlights: ["ค่ารักษา 2 ล้านบาท", "เที่ยวบินล่าช้าทุก 6 ชม.", "ซื้อออนไลน์ได้ทันที"],
-    exclusions: ["กีฬาผาดโผน", "โรคที่เป็นมาก่อน"],
-    specs: { premium: 380, medicalLimit: 2000000, accidentDeath: 1000000, flightDelay: 3000, baggage: 10000, schengen: false, covid: true },
-    reviews: [r("Kan", 5, "ราคาถูก ซื้อง่าย", "ไปญี่ปุ่น 7 วัน ได้กรมธรรม์ในอีเมลทันที", "2026-10-20")],
-  },
-  {
-    id: "travel-siam-worldwide",
-    category: "travel",
-    name: "สยามชิลด์ เวิลด์ไวด์",
-    provider: "สยามชิลด์",
-    tagline: "ใช้ยื่นวีซ่าเชงเก้นได้ ค่ารักษา 5 ล้าน",
-    badge: "คุ้มครองสูงสุด",
-    highlights: ["ยื่นวีซ่าเชงเก้นได้", "ค่ารักษา 5 ล้านบาท", "สายด่วนภาษาไทย 24 ชม."],
-    exclusions: ["การเดินทางไปพื้นที่สงคราม"],
-    specs: { premium: 990, medicalLimit: 5000000, accidentDeath: 3000000, flightDelay: 10000, baggage: 30000, schengen: true, covid: true },
-    reviews: [
-      r("อิง", 5, "ยื่นวีซ่าผ่าน", "สถานทูตรับ เอกสารภาษาอังกฤษครบ", "2026-08-08"),
-      r("Arm", 4, "คุ้มครองดี", "กระเป๋าเสียหาย เคลมได้ภายใน 2 สัปดาห์", "2026-05-01"),
-    ],
-  },
-  {
-    id: "travel-sabai-trip",
-    category: "travel",
-    name: "สบายใจ ทริปส์",
-    provider: "สบายไลฟ์",
-    tagline: "แผนสมดุล ค่ารักษา 3 ล้าน กระเป๋าหาย 20,000",
-    highlights: ["คุ้มครองการยกเลิกการเดินทาง", "เที่ยวบินล่าช้าทุก 4 ชม.", "ยื่นวีซ่าได้"],
-    exclusions: ["ไม่คุ้มครองโควิด-19"],
-    specs: { premium: 590, medicalLimit: 3000000, accidentDeath: 1500000, flightDelay: 6000, baggage: 20000, schengen: true, covid: false },
-    reviews: [r("ฝน", 4, "ราคากลาง ๆ", "สมดุลดี แต่ไม่มีโควิด", "2026-04-04")],
-  },
+  // ───────────── ประกันการเดินทาง: real data, see ./data/travel.ts ─────────────
+  ...TRAVEL_PRODUCTS,
 
-  // ───────────── อุบัติเหตุ ─────────────
-  {
-    id: "pa-chao-active",
-    category: "accident",
-    name: "เจ้าพระยา PA แอคทีฟ",
-    provider: "เจ้าพระยาประกันภัย",
-    tagline: "สำหรับคนชอบออกกำลังกาย คุ้มครองขี่มอเตอร์ไซค์",
-    badge: "ยอดนิยม",
-    highlights: ["คุ้มครองขับขี่ จยย.", "ค่ารักษา 50,000/ครั้ง", "เบี้ยเท่ากันทุกอายุ"],
-    exclusions: ["แข่งรถ", "เมาสุรา"],
-    specs: { premium: 2490, deathBenefit: 500000, medicalPerAccident: 50000, dailyComp: 1000, motorcycle: true, maxEntryAge: 70 },
-    reviews: [r("บอส", 5, "ขี่มอไซค์ทุกวัน อุ่นใจ", "ล้มเล็กน้อย เคลมค่ารักษาได้ง่าย", "2026-09-28")],
-  },
-  {
-    id: "pa-lanna-senior",
-    category: "accident",
-    name: "ล้านนา PA ซีเนียร์",
-    provider: "ล้านนาโพรเทค",
-    tagline: "ประกันอุบัติเหตุสำหรับผู้สูงอายุ ไม่ต้องตรวจสุขภาพ",
-    highlights: ["รับถึงอายุ 80 ปี", "ไม่ต้องตรวจสุขภาพ", "ชดเชยรายวัน 1,500"],
-    exclusions: ["ไม่คุ้มครองขับขี่ จยย."],
-    specs: { premium: 3200, deathBenefit: 300000, medicalPerAccident: 30000, dailyComp: 1500, motorcycle: false, maxEntryAge: 80 },
-    reviews: [r("ลูกสาวคุณแม่", 4, "ซื้อให้แม่", "สมัครง่าย ไม่ต้องตรวจ", "2026-06-16")],
-  },
-  {
-    id: "pa-andaman-mini",
-    category: "accident",
-    name: "อันดามัน PA มินิ",
-    provider: "อันดามันประกันภัย",
-    tagline: "วันละไม่ถึง 3 บาท คุ้มครองอุบัติเหตุ 24 ชม.",
-    badge: "เบี้ยถูกสุด",
-    highlights: ["เบี้ยปีละ 990", "คุ้มครองทั่วโลก", "สมัครผ่านมือถือ"],
-    exclusions: ["ไม่คุ้มครองขับขี่ จยย.", "ไม่มีชดเชยรายวัน"],
-    specs: { premium: 990, deathBenefit: 200000, medicalPerAccident: 20000, dailyComp: 0, motorcycle: false, maxEntryAge: 65 },
-    reviews: [r("Fah", 4, "ถูกและพอใช้", "เหมาะเป็นประกันตัวแรก", "2026-03-09")],
-  },
+  // ───────────── ประกันอุบัติเหตุ: real data, see ./data/accident.ts ─────────────
+  ...ACCIDENT_PRODUCTS,
 
   // ───────────── บ้าน/อัคคีภัย ─────────────
   {
@@ -294,6 +225,12 @@ export function getProduct(id: string) {
 
 export function productsIn(category: string) {
   return PRODUCTS.filter((p) => p.category === category);
+}
+
+/** Headline price, or null when the insurer only quotes on request. */
+export function priceOf(p: Product, priceKey: string): number | null {
+  const v = p.specs[priceKey];
+  return typeof v === "number" ? v : null;
 }
 
 export function avgRating(reviews: { rating: number }[]) {

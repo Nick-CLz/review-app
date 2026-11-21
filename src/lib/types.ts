@@ -4,6 +4,7 @@ export interface Store {
   id: string;
   name: string;
   color: string; // hex, used for badges
+  userId?: string; // who added it; undefined = sample data
 }
 
 export interface Item {
@@ -16,8 +17,10 @@ export interface Item {
   unit: Unit;
   barcode?: string;
   emoji?: string;
+  imageUrl?: string;
   attributes: Record<string, string>; // free-form specs so we can review "anything"
   createdAt: string;
+  userId?: string;
 }
 
 export interface Price {
@@ -27,6 +30,7 @@ export interface Price {
   price: number; // THB
   promo?: string;
   date: string; // ISO date the price was seen
+  userId?: string;
 }
 
 export interface Review {
@@ -38,6 +42,7 @@ export interface Review {
   author: string;
   storeId?: string;
   date: string;
+  userId?: string;
 }
 
 export interface DB {
@@ -47,4 +52,10 @@ export interface DB {
   prices: Price[];
   reviews: Review[];
   compare: string[]; // item ids queued for comparison
+  list: ListEntry[]; // personal shopping list (this browser only)
+}
+
+export interface ListEntry {
+  itemId: string;
+  qty: number;
 }
