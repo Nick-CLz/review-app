@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ViewerSync } from "@/components/auth";
 import { CompareBar } from "@/components/CompareBar";
 import { Nav } from "@/components/Nav";
+import { Toaster } from "@/components/Toaster";
 import "./globals.css";
 
 const font = Noto_Sans_Thai({ variable: "--font-thai", subsets: ["thai", "latin"] });
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Suspense>
             <CompareBar />
           </Suspense>
+          <Toaster />
         </ClerkProvider>
       </body>
     </html>

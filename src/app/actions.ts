@@ -12,10 +12,22 @@ import type { Item, Price, Review, Store } from "@/lib/types";
 
 
 /** An error whose message is safe and useful to show the person who made the change. */
-class UserError extends Error {}
-class AuthError extends UserError {}
+class UserError extends Error {
+  code: ErrorCode = "invalid";
+}
+class AuthError extends UserError {
+  code: ErrorCode = "auth";
+}
+class ForbiddenError extends UserError {
+  code: ErrorCode = "forbidden";
+}
 
-export type ActionResult = { ok: true } | { ok: false; error: string };
+/**
+ * Why a write failed. The page translates the code (src/lib/i18n.ts, "err.*"); `error` is the
+ * English text, used as-is for "invalid" (it names the field) and as a fallback.
+ */
+export type ErrorCode = "auth" | "forbidden" | "gone" | "duplicate" | "invalid" | "server";
+export type ActionResult = { ok: true } | { ok: false; code: ErrorCode; error: string };
 
 /**
  * Run a write and report the outcome as data. Thrown errors from Server Functions have their
@@ -26,13 +38,13 @@ async function run(write: () => Promise<unknown>): Promise<ActionResult> {
     await write();
     return { ok: true };
   } catch (e) {
-    if (e instanceof UserError) return { ok: false, error: e.message };
-    const code = (e as { code?: string }).code; // Postgres error code from Neon
-    if (code === "23503") return { ok: false, error: "That item or store no longer exists. Refresh and try again." };
-    if (code === "23505") return { ok: false, error: "That was already saved." };
-    if (code === "23514") return { ok: false, error: "Some of the values are out of range." };
+    if (e instanceof UserError) return { ok: false, code: e.code, error: e.message };
+    const pg = (e as { code?: string }).code; // Postgres error code from Neon
+    if (pg === "23503") return { ok: false, code: "gone", error: "That item or store no longer exists. Refresh and try again." };
+    if (pg === "23505") return { ok: false, code: "duplicate", error: "That was already saved." };
+    if (pg === "23514") return { ok: false, code: "invalid", error: "Some of the values are out of range." };
     console.error("Server Function failed", e);
-    return { ok: false, error: "Couldn't save right now. Please try again." };
+    return { ok: false, code: "server", error: "Couldn't save right now. Please try again." };
   }
 }
 
@@ -73,7 +85,7 @@ async function deleteOwned(table: "items" | "prices" | "reviews", rowId: string)
     : table === "prices"
       ? sql`SELECT 1 FROM prices WHERE id = ${rowId}`
       : sql`SELECT 1 FROM reviews WHERE id = ${rowId}`)) as unknown[];
-  if (exists.length) throw new AuthError("You can only delete things you added");
+  if (exists.length) throw new ForbiddenError("You can only delete things you added");
 }
 
 /** Who is signed in, for showing edit/delete controls. Safe to expose. */

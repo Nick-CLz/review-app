@@ -131,7 +131,7 @@ export default function ItemPage() {
                     <StoreBadge store={storeMap.get(p.storeId)} />
                     <span>{baht(p.price)}</span>
                     {viewer.canDelete(p) ? (
-                      <button className="text-xs text-zinc-400 hover:text-red-600" onClick={() => actions.deletePrice(p.id)} aria-label={t("item.deletePrice")}>✕</button>
+                      <button className="text-xs text-zinc-400 hover:text-red-600" onClick={() => confirm(t("item.deletePriceConfirm")) && actions.deletePrice(p.id)} aria-label={t("item.deletePrice")}>✕</button>
                     ) : <span className="w-3" />}
                   </li>
                 ))}
@@ -208,17 +208,23 @@ function AddPrice({ itemId }: { itemId: string }) {
   const [price, setPrice] = useState("");
   const [promo, setPromo] = useState("");
   const [date, setDate] = useState(today());
+  const [busy, setBusy] = useState(false);
 
   return (
     <form
       className="space-y-2"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const n = parseFloat(price);
-        if (!storeId || !(n > 0)) return;
-        actions.addPrice({ itemId, storeId, price: n, promo: promo.trim() || undefined, date });
-        setPrice("");
-        setPromo("");
+        if (busy || !storeId || !(n > 0)) return;
+        setBusy(true);
+        const ok = await actions.addPrice({ itemId, storeId, price: n, promo: promo.trim() || undefined, date });
+        setBusy(false);
+        // Keep what was typed if the save was rejected, so it can be fixed and sent again
+        if (ok) {
+          setPrice("");
+          setPromo("");
+        }
       }}
     >
       <div className="text-xs font-medium text-zinc-500">{t("price.log")}</div>
@@ -230,7 +236,7 @@ function AddPrice({ itemId }: { itemId: string }) {
         <input className="input" placeholder={t("price.promo")} value={promo} onChange={(e) => setPromo(e.target.value)} aria-label={t("price.promo")} />
         <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t("price.date")} />
       </div>
-      <button className="btn-primary w-full">{t("price.save")}</button>
+      <button className="btn-primary w-full" disabled={busy}>{busy ? t("common.saving") : t("price.save")}</button>
     </form>
   );
 }
@@ -243,31 +249,41 @@ function ReviewForm({ itemId, mine, authorName }: { itemId: string; mine?: Revie
   const [body, setBody] = useState(mine?.body ?? "");
   const [storeId, setStoreId] = useState(mine?.storeId ?? "");
   const [err, setErr] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  // A first post swaps this form for a fresh one (the key becomes the new review's id), which
+  // forgets `submitting`; the store's own status still knows a save is on its way.
+  const inFlight = useSyncStatus() === "saving";
+  // "Saved" is read off the data rather than remembered: it shows only while the form matches
+  // the review the store holds, so it disappears again if the server rejects the save.
+  const matches = !!mine && mine.rating === rating && mine.title === title.trim() && mine.body === body.trim() && (mine.storeId ?? "") === storeId;
+  const busy = submitting || (matches && inFlight);
+  const saved = matches && !busy;
 
   return (
     <form
       className="space-y-2"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
+        if (busy || saved) return;
         if (!rating) return setErr(t("review.pickStars"));
         if (!title.trim()) return setErr(t("review.addTitle"));
-        actions.addReview({ itemId, rating, title: title.trim(), body: body.trim(), storeId: storeId || undefined, date: today() }, authorName);
         setErr("");
-        setSaved(true);
+        setSubmitting(true);
+        await actions.addReview({ itemId, rating, title: title.trim(), body: body.trim(), storeId: storeId || undefined, date: today() }, authorName);
+        setSubmitting(false);
       }}
     >
       {mine && <p className="text-xs text-zinc-500">{t("review.mine", { date: mine.date })}</p>}
-      <StarInput value={rating} onChange={(n) => { setRating(n); setErr(""); setSaved(false); }} />
-      <input className="input" placeholder={t("review.titlePh")} value={title} onChange={(e) => { setTitle(e.target.value); setSaved(false); }} aria-label={t("review.title")} />
-      <textarea className="input min-h-20" placeholder={t("review.bodyPh")} value={body} onChange={(e) => { setBody(e.target.value); setSaved(false); }} aria-label={t("review.body")} />
+      <StarInput value={rating} onChange={(n) => { setRating(n); setErr(""); }} />
+      <input className="input" placeholder={t("review.titlePh")} value={title} onChange={(e) => setTitle(e.target.value)} aria-label={t("review.title")} />
+      <textarea className="input min-h-20" placeholder={t("review.bodyPh")} value={body} onChange={(e) => setBody(e.target.value)} aria-label={t("review.body")} />
       <select className="input" value={storeId} onChange={(e) => setStoreId(e.target.value)} aria-label={t("review.boughtAt")}>
         <option value="">{t("review.boughtAt")}</option>
         {db.stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
       </select>
       {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="flex items-center gap-3">
-        <button className="btn-primary">{mine ? t("review.update") : t("review.post")}</button>
+        <button className="btn-primary" disabled={busy || saved}>{busy ? t("common.saving") : mine ? t("review.update") : t("review.post")}</button>
         <span className="text-xs text-zinc-500">{saved ? t("review.saved") : t("review.postingAs", { name: authorName || t("review.you") })}</span>
       </div>
     </form>

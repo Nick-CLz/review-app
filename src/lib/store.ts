@@ -2,13 +2,14 @@
 
 // Client-side view of the shared database.
 // - Items, prices, reviews and stores come from Neon via /api/db and are shared by everyone.
-// - Writes go through Server Functions (src/app/actions.ts); the UI updates optimistically,
-//   then re-syncs from the server.
+// - Writes go through Server Functions (src/app/actions.ts). What's on screen is always
+//   `base` (the last state the server confirmed) with the unanswered writes (`ops`) applied
+//   on top, so a failed write is undone at once just by dropping its op.
 // - The compare list and shopping list are personal and stay in this browser's localStorage.
 
 import { useSyncExternalStore } from "react";
 import * as server from "@/app/actions";
-import type { ActionResult } from "@/app/actions";
+import type { ActionResult, ErrorCode } from "@/app/actions";
 import type { DB, Item, ListEntry, Price, Review, Store } from "./types";
 
 type Shared = Omit<DB, "compare" | "list" | "version">;
@@ -22,7 +23,21 @@ const POLL_MS = 20_000;
 const EMPTY: Shared = { stores: [], items: [], prices: [], reviews: [] };
 const SERVER_SNAPSHOT: DB = { version: 1, ...EMPTY, compare: [], list: [] };
 
-let shared: Shared = EMPTY;
+type Op = (s: Shared) => Shared;
+/** A failed save, shown as a toast (src/components/Toaster.tsx) in the reader's language. */
+export interface Notice {
+  id: number;
+  code: ErrorCode | "network";
+  message: string; // English detail from the server; shown as-is for "invalid"
+}
+
+let base: Shared = EMPTY; // last state confirmed by the server
+let ops: Op[] = []; // optimistic changes the server hasn't answered yet
+let shared: Shared = EMPTY; // base + ops: what the UI shows
+let settled = 0; // writes that have finished; a refresh that overlaps one may be out of date
+let lastPayload = ""; // raw text of the last /api/db response that was applied
+let notice: Notice | null = null;
+let noticeSeq = 0;
 let compare: string[] = [];
 let list: ListEntry[] = [];
 let status: SyncStatus = "loading";
@@ -30,9 +45,11 @@ let lastError = "";
 let viewerId: string | undefined; // set by <ViewerSync> from the Clerk session
 let snapshot: DB = SERVER_SNAPSHOT;
 let started = false;
-let pending = 0;
-let writes = 0; // bumped by every write, so a refresh that started before it can be thrown away
 const listeners = new Set<() => void>();
+
+function rebuild() {
+  shared = ops.reduce((s, op) => op(s), base);
+}
 
 function emit() {
   const known = (id: string) => shared.items.some((i) => i.id === id);
@@ -48,16 +65,21 @@ function safeSet(key: string, value: string) {
 }
 
 export async function refresh() {
-  const startedAt = writes;
+  const seen = settled;
   try {
     const res = await fetch("/api/db", { cache: "no-store" });
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
-    const data = (await res.json()) as Shared;
-    // A write started or finished while this request was in flight, so the response may be
-    // older than what's on screen. The refresh that follows that write will land the final state.
-    if (pending > 0 || writes !== startedAt) return;
-    shared = { stores: data.stores, items: data.items, prices: data.prices, reviews: data.reviews };
-    safeSet(CACHE_KEY, JSON.stringify(shared));
+    const text = await res.text();
+    // A write is in flight or finished while this request was, so the response may be older
+    // than what's on screen. The refresh that follows that write will land the final state.
+    if (ops.length > 0 || settled !== seen) return;
+    // Nothing changed since the last poll: keep the same objects so nothing re-renders.
+    if (text === lastPayload && status === "ready") return;
+    const data = JSON.parse(text) as Shared;
+    base = { stores: data.stores, items: data.items, prices: data.prices, reviews: data.reviews };
+    lastPayload = text;
+    rebuild();
+    safeSet(CACHE_KEY, JSON.stringify(base));
     status = "ready";
     lastError = "";
   } catch (e) {
@@ -72,7 +94,7 @@ function start() {
   started = true;
   try {
     const cached = safeGet(CACHE_KEY);
-    if (cached) shared = JSON.parse(cached) as Shared;
+    if (cached) base = shared = JSON.parse(cached) as Shared;
     compare = JSON.parse(safeGet(COMPARE_KEY) ?? "[]") as string[];
     list = parseList(safeGet(LIST_KEY));
   } catch { /* ignore bad cache */ }
@@ -110,30 +132,44 @@ export function setViewerId(id: string | undefined) {
   viewerId = id;
 }
 
-/** Apply a change locally right away, persist it on the server, then re-sync. */
-async function mutate(local: (s: Shared) => Shared, remote: () => Promise<ActionResult>) {
-  shared = local(shared);
-  pending++;
-  writes++;
+export function useNotice() {
+  return useSyncExternalStore(subscribe, () => notice, () => null);
+}
+export function dismissNotice() {
+  notice = null;
+  emit();
+}
+
+/**
+ * Apply a change locally right away and persist it on the server.
+ * Resolves to true once the server has saved it, or false if it was rejected and undone.
+ */
+async function mutate(local: Op, remote: () => Promise<ActionResult>): Promise<boolean> {
+  ops.push(local);
+  rebuild();
   status = "saving";
   emit();
-  let error: string | undefined;
+  let failure: Pick<Notice, "code" | "message"> | null = null;
   try {
     const result = await remote();
-    if (!result.ok) error = result.error;
+    if (!result.ok) failure = { code: result.code, message: result.error };
   } catch (e) {
     // Network failure or a server crash before the action could report back
     console.error(e);
-    error = "Couldn't reach the server.";
-  } finally {
-    pending--;
-    writes++;
+    failure = { code: "network", message: "Couldn't reach the server." };
   }
-  if (error) {
-    lastError = `${error} Your change was undone.`;
-    alert(lastError);
+  ops = ops.filter((op) => op !== local);
+  settled++;
+  if (failure) {
+    notice = { id: ++noticeSeq, ...failure };
+  } else {
+    base = local(base); // confirmed; the refresh below replaces it with the server's own copy
   }
-  if (pending === 0) await refresh();
+  rebuild();
+  emit();
+  // Re-sync in the background; callers get their answer without waiting for it.
+  if (ops.length === 0) void refresh();
+  return !failure;
 }
 
 function parseList(raw: string | null): ListEntry[] {
@@ -168,38 +204,47 @@ export const actions = {
     const id = uid("item");
     const full: Item = { ...item, id, createdAt: today(), userId: viewerId };
     const rows: Price[] = prices.map((p) => ({ id: uid("p"), itemId: id, storeId: p.storeId, price: p.price, date: today(), userId: viewerId }));
-    mutate(
+    const saved = mutate(
       (s) => ({ ...s, items: [...s.items, full], prices: [...s.prices, ...rows] }),
       () => server.addItemAction({ ...item, id }, rows.map(({ id, storeId, price, date }) => ({ id, storeId, price, date }))),
     );
-    return id;
+    return { id, saved };
   },
-  deleteItem(id: string) {
-    setCompare(compare.filter((c) => c !== id));
-    if (list.some((e) => e.itemId === id)) setList(list.filter((e) => e.itemId !== id));
-    mutate(
+  async deleteItem(id: string) {
+    const ok = await mutate(
       (s) => ({ ...s, items: s.items.filter((i) => i.id !== id), prices: s.prices.filter((p) => p.itemId !== id), reviews: s.reviews.filter((r) => r.itemId !== id) }),
       () => server.deleteItemAction(id),
     );
+    // emit() already hides unknown items; forget them for good only once the delete is real,
+    // so a rejected delete doesn't cost the person their compare or shopping list entry.
+    if (ok) {
+      if (compare.includes(id)) setCompare(compare.filter((c) => c !== id));
+      if (list.some((e) => e.itemId === id)) setList(list.filter((e) => e.itemId !== id));
+    }
+    return ok;
   },
   addPrice(p: Omit<Price, "id" | "userId">) {
     const row = { ...p, id: uid("p") };
-    mutate((s) => ({ ...s, prices: [...s.prices, { ...row, userId: viewerId }] }), () => server.addPriceAction(row));
+    return mutate((s) => ({ ...s, prices: [...s.prices, { ...row, userId: viewerId }] }), () => server.addPriceAction(row));
   },
   deletePrice(id: string) {
-    mutate((s) => ({ ...s, prices: s.prices.filter((p) => p.id !== id) }), () => server.deletePriceAction(id));
+    return mutate((s) => ({ ...s, prices: s.prices.filter((p) => p.id !== id) }), () => server.deletePriceAction(id));
   },
   /** Posting again on the same item replaces your earlier review. */
   addReview(r: Omit<Review, "id" | "author" | "userId">, authorName: string) {
-    const row = { ...r, id: uid("r") };
     const mine = (x: Review) => x.itemId === r.itemId && !!viewerId && x.userId === viewerId;
-    mutate(
+    // The server keeps the id of the review being replaced; do the same so the row (and any
+    // UI keyed on it) stays put instead of flipping to a new id and back.
+    const fresh = uid("r");
+    const row = { ...r, id: shared.reviews.find(mine)?.id ?? fresh };
+    return mutate(
       (s) => ({ ...s, reviews: [{ ...row, author: authorName, userId: viewerId }, ...s.reviews.filter((x) => !mine(x))] }),
-      () => server.addReviewAction(row),
+      // Always send a new id: on a replace the server ignores it and keeps the existing row's id.
+      () => server.addReviewAction({ ...r, id: fresh }),
     );
   },
   deleteReview(id: string) {
-    mutate((s) => ({ ...s, reviews: s.reviews.filter((r) => r.id !== id) }), () => server.deleteReviewAction(id));
+    return mutate((s) => ({ ...s, reviews: s.reviews.filter((r) => r.id !== id) }), () => server.deleteReviewAction(id));
   },
   addStore(name: string, color: string): Store {
     const store = { id: uid("store"), name, color };

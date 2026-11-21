@@ -253,6 +253,16 @@ const en = {
   "list.total": "Total",
   "list.unpriced": "Not counted (no price at any store): {names}",
   "list.items": "Items ({n})",
+  "item.deletePriceConfirm": "Delete this price?",
+  "common.saving": "Saving…",
+  "err.auth": "Please sign in to make changes.",
+  "err.forbidden": "You can only delete things you added.",
+  "err.gone": "That item or store no longer exists.",
+  "err.duplicate": "That was already saved.",
+  "err.server": "Couldn't save right now. Please try again.",
+  "err.network": "Couldn't reach the server. Check your connection and try again.",
+  "err.undone": "Your change was undone.",
+  "err.dismiss": "Dismiss",
 };
 
 export type TKey = keyof typeof en;
@@ -502,6 +512,16 @@ const th: Record<TKey, string> = {
   "list.total": "รวม",
   "list.unpriced": "ไม่ได้นับ (ยังไม่มีราคาที่ร้านใด): {names}",
   "list.items": "สินค้า ({n})",
+  "item.deletePriceConfirm": "ลบราคานี้?",
+  "common.saving": "กำลังบันทึก…",
+  "err.auth": "กรุณาเข้าสู่ระบบก่อนแก้ไขข้อมูล",
+  "err.forbidden": "ลบได้เฉพาะรายการที่คุณเพิ่มเองเท่านั้น",
+  "err.gone": "ไม่มีสินค้าหรือร้านนี้แล้ว",
+  "err.duplicate": "บันทึกรายการนี้ไปแล้ว",
+  "err.server": "บันทึกไม่ได้ในขณะนี้ กรุณาลองใหม่",
+  "err.network": "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่",
+  "err.undone": "ระบบยกเลิกการแก้ไขของคุณแล้ว",
+  "err.dismiss": "ปิด",
 };
 
 const DICT: Record<Lang, Record<TKey, string>> = { en, th };

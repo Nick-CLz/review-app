@@ -38,6 +38,7 @@ export default function AddPage() {
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [newStore, setNewStore] = useState({ name: "", color: "#2563eb" });
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
   // Arrived from the scanner: fill the form from Open Food Facts
   useEffect(() => {
@@ -58,12 +59,15 @@ export default function AddPage() {
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     const size = parseFloat(f.size);
     if (!f.name.trim() || !f.category.trim() || !(size > 0)) return setErr(t("add.errRequired"));
     if (f.imageUrl.trim() && !f.imageUrl.trim().startsWith("https://")) return setErr(t("add.errPhoto"));
-    const id = actions.addItem(
+    setErr("");
+    setBusy(true);
+    const { id, saved } = actions.addItem(
       {
         name: f.name.trim(), nameTh: f.nameTh.trim() || undefined, brand: f.brand.trim() || "—", category: f.category.trim(),
         size, unit: f.unit, barcode: f.barcode.trim() || undefined, emoji: f.emoji, imageUrl: f.imageUrl.trim() || undefined,
@@ -71,7 +75,10 @@ export default function AddPage() {
       },
       Object.entries(prices).map(([storeId, v]) => ({ storeId, price: parseFloat(v) })).filter((p) => p.price > 0),
     );
-    router.push(`/items/${id}`);
+    // Go to the new item only once it's really saved; if it's rejected, the form stays filled in
+    // (the reason shows as a toast) so nothing has to be typed again.
+    if (await saved) router.push(`/items/${id}`);
+    else setBusy(false);
   }
 
   return (
@@ -165,7 +172,7 @@ export default function AddPage() {
       </section>
 
       {err && <p className="text-sm text-red-600">{err}</p>}
-      <button className="btn-primary w-full py-3">{t("add.save")}</button>
+      <button className="btn-primary w-full py-3" disabled={busy}>{busy ? t("common.saving") : t("add.save")}</button>
     </form>
     </SignInGate>
   );
