@@ -11,6 +11,8 @@ npm run dev   # http://localhost:3300
 - Browse with filters (body type, powertrain, budget, seats), search, and sorting
 - Spec-based scores (economy, performance, practicality, safety, price) relative to every car
 - Side-by-side compare of up to 4 items across types, winners highlighted, "differences only", shareable `/compare?ids=a,b`
+- Car finder quiz (`/finder`): budget, seats, daily km, home charging, use and priorities → ranked matches with reasons
+- Radar chart of the five scores and a cost-over-time chart with payback estimates on the compare page
 - Cost-of-ownership calculator (price + fuel/electricity + servicing) with editable energy prices
 - User reviews (stored in the browser for now)
 

@@ -34,8 +34,8 @@ export default function Home() {
             <Link href="/c/cars" className="btn-primary px-6 py-3 text-base">
               ดูรถทั้งหมด {cars.length} รุ่น
             </Link>
-            <Link href={`/compare?ids=${MATCHUPS[0].ids.join(",")}`} className="btn-ghost px-6 py-3 text-base">
-              ลองเทียบ EV vs ไฮบริด
+            <Link href="/finder" className="btn-ghost px-6 py-3 text-base">
+              🧭 ไม่รู้จะเลือกอะไร? ให้ช่วยเลือก
             </Link>
           </div>
         </div>

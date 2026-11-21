@@ -10,6 +10,7 @@ import type { Item } from "@/lib/types";
 import CarArt from "./CarArt";
 import CostCalculator from "./CostCalculator";
 import RatingBadge from "./RatingBadge";
+import ScoreRadar from "./ScoreRadar";
 
 function AddPicker({ exclude, onPick }: { exclude: string[]; onPick: (id: string) => void }) {
   const all = itemsIn("cars").filter((i) => !exclude.includes(i.id));
@@ -257,6 +258,7 @@ export default function CompareView() {
         </div>
       </div>
 
+      <ScoreRadar items={items} />
       <CostCalculator items={items} />
     </div>
   );

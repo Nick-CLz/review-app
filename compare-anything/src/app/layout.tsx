@@ -29,6 +29,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/c/cars" className="hover:text-fg">
                 🚗 รถยนต์
               </Link>
+              <Link href="/finder" className="hover:text-fg">
+                🧭 ช่วยเลือกรถ
+              </Link>
             </nav>
             <Link href="/compare" className="ml-auto text-sm font-semibold text-brand">
               เปรียบเทียบ →

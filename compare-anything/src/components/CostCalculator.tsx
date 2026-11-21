@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DEFAULT_ENERGY, energyCostPerKm, MAINTENANCE_PER_YEAR, type Powertrain } from "@/lib/cars";
 import { money, moneyShort } from "@/lib/format";
 import { fullName } from "@/lib/items";
+import { SERIES } from "@/lib/palette";
 import type { Item } from "@/lib/types";
 
 function costOf(item: Item, km: number, years: number, e: typeof DEFAULT_ENERGY) {
@@ -47,6 +48,83 @@ function Num({
         {suffix && <span className="shrink-0">{suffix}</span>}
       </span>
     </label>
+  );
+}
+
+function yearsToCatchUp(a: Row, b: Row) {
+  // a costs more up front but less per year than b → when does a's total drop below b's?
+  const extra = a.price - b.price;
+  const saving = b.yearly - a.yearly;
+  if (extra <= 0 || saving <= 0) return null;
+  return extra / saving;
+}
+
+interface Row {
+  item: Item;
+  price: number;
+  yearly: number;
+}
+
+function CostOverTime({ rows, years }: { rows: Row[]; years: number }) {
+  const W = 560;
+  const H = 240;
+  const pad = { l: 56, r: 12, t: 12, b: 28 };
+  const span = Math.max(years, 1);
+  const maxY = Math.max(...rows.map((r) => r.price + r.yearly * span));
+  // Start the axis just under the cheapest purchase price so the lines don't bunch up at the top.
+  const minY = Math.floor((Math.min(...rows.map((r) => r.price)) * 0.85) / 100_000) * 100_000;
+  const x = (t: number) => pad.l + (t / span) * (W - pad.l - pad.r);
+  const y = (v: number) => H - pad.b - ((v - minY) / (maxY - minY)) * (H - pad.t - pad.b);
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => minY + f * (maxY - minY));
+
+  // Payback notes: each pricier car vs each cheaper-to-buy car it eventually beats within the period.
+  const notes: string[] = [];
+  for (const a of rows)
+    for (const b of rows) {
+      const t = yearsToCatchUp(a, b);
+      if (t !== null && t <= span) notes.push(`${fullName(a.item)} คืนทุนเทียบกับ ${fullName(b.item)} ในราว ${t.toFixed(1)} ปี`);
+    }
+
+  return (
+    <div className="mt-6">
+      <p className="text-sm font-bold">ค่าใช้จ่ายสะสมตามปี</p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full max-w-3xl" role="img" aria-label="กราฟค่าใช้จ่ายสะสมของแต่ละรุ่นตามจำนวนปี">
+        {ticks.map((v) => (
+          <g key={v}>
+            <line x1={pad.l} x2={W - pad.r} y1={y(v)} y2={y(v)} stroke="var(--line)" />
+            <text x={pad.l - 6} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="var(--muted)">
+              {(v / 1_000_000).toFixed(2)}M
+            </text>
+          </g>
+        ))}
+        {Array.from({ length: span + 1 }, (_, t) => (
+          <text key={t} x={x(t)} y={H - 8} textAnchor="middle" fontSize="10" fill="var(--muted)">
+            {t === 0 ? "ซื้อ" : `ปี ${t}`}
+          </text>
+        ))}
+        {rows.map((r, idx) => (
+          <g key={r.item.id}>
+            <line x1={x(0)} y1={y(r.price)} x2={x(span)} y2={y(r.price + r.yearly * span)} stroke={SERIES[idx]} strokeWidth="2.5" />
+            <circle cx={x(span)} cy={y(r.price + r.yearly * span)} r="3.5" fill={SERIES[idx]} />
+          </g>
+        ))}
+      </svg>
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        {rows.map((r, idx) => (
+          <span key={r.item.id} className="flex items-center gap-1.5">
+            <i className="h-0.5 w-4 rounded" style={{ background: SERIES[idx] }} />
+            {fullName(r.item)}
+          </span>
+        ))}
+      </div>
+      {notes.length > 0 && (
+        <ul className="mt-3 space-y-1 text-sm">
+          {notes.map((n) => (
+            <li key={n}>💡 {n}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -105,6 +183,9 @@ export default function CostCalculator({ items }: { items: Item[] }) {
           </li>
         ))}
       </ul>
+      {rows.length > 1 && (
+        <CostOverTime rows={rows.map((r) => ({ item: r.item, price: r.price, yearly: (r.energy + r.maint) / Math.max(years, 1) }))} years={years} />
+      )}
       <div className="mt-4 flex gap-4 text-[11px] text-muted">
         <span className="flex items-center gap-1"><i className="h-2 w-3 rounded bg-brand" />ราคารถ</span>
         <span className="flex items-center gap-1"><i className="h-2 w-3 rounded bg-accent" />ค่าพลังงาน</span>
